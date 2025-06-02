@@ -1,0 +1,1832 @@
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: v1
+  apiresources:
+    - name: services
+      singularname: service
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Service
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - svc
+      categories:
+        - all
+      storageversionhash: ""
+    - name: limitranges
+      singularname: limitrange
+      namespaced: true
+      group: ""
+      version: ""
+      kind: LimitRange
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - limits
+      categories: []
+      storageversionhash: ""
+    - name: namespaces
+      singularname: namespace
+      namespaced: false
+      group: ""
+      version: ""
+      kind: Namespace
+      verbs:
+        - create
+        - delete
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - ns
+      categories: []
+      storageversionhash: ""
+    - name: secrets
+      singularname: secret
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Secret
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: serviceaccounts
+      singularname: serviceaccount
+      namespaced: true
+      group: ""
+      version: ""
+      kind: ServiceAccount
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - sa
+      categories: []
+      storageversionhash: ""
+    - name: podtemplates
+      singularname: podtemplate
+      namespaced: true
+      group: ""
+      version: ""
+      kind: PodTemplate
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: configmaps
+      singularname: configmap
+      namespaced: true
+      group: ""
+      version: ""
+      kind: ConfigMap
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - cm
+      categories: []
+      storageversionhash: ""
+    - name: nodes
+      singularname: node
+      namespaced: false
+      group: ""
+      version: ""
+      kind: Node
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - "no"
+      categories: []
+      storageversionhash: ""
+    - name: replicationcontrollers
+      singularname: replicationcontroller
+      namespaced: true
+      group: ""
+      version: ""
+      kind: ReplicationController
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - rc
+      categories:
+        - all
+      storageversionhash: ""
+    - name: bindings
+      singularname: binding
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Binding
+      verbs:
+        - create
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: events
+      singularname: event
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Event
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - ev
+      categories: []
+      storageversionhash: ""
+    - name: componentstatuses
+      singularname: componentstatus
+      namespaced: false
+      group: ""
+      version: ""
+      kind: ComponentStatus
+      verbs:
+        - get
+        - list
+      shortnames:
+        - cs
+      categories: []
+      storageversionhash: ""
+    - name: persistentvolumeclaims
+      singularname: persistentvolumeclaim
+      namespaced: true
+      group: ""
+      version: ""
+      kind: PersistentVolumeClaim
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - pvc
+      categories: []
+      storageversionhash: ""
+    - name: pods
+      singularname: pod
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Pod
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - po
+      categories:
+        - all
+      storageversionhash: ""
+    - name: endpoints
+      singularname: endpoints
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Endpoints
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - ep
+      categories: []
+      storageversionhash: ""
+    - name: resourcequotas
+      singularname: resourcequota
+      namespaced: true
+      group: ""
+      version: ""
+      kind: ResourceQuota
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - quota
+      categories: []
+      storageversionhash: ""
+    - name: persistentvolumes
+      singularname: persistentvolume
+      namespaced: false
+      group: ""
+      version: ""
+      kind: PersistentVolume
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - pv
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: apiregistration.k8s.io/v1
+  apiresources:
+    - name: apiservices
+      singularname: apiservice
+      namespaced: false
+      group: ""
+      version: ""
+      kind: APIService
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories:
+        - api-extensions
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: apps/v1
+  apiresources:
+    - name: daemonsets
+      singularname: daemonset
+      namespaced: true
+      group: ""
+      version: ""
+      kind: DaemonSet
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - ds
+      categories:
+        - all
+      storageversionhash: ""
+    - name: replicasets
+      singularname: replicaset
+      namespaced: true
+      group: ""
+      version: ""
+      kind: ReplicaSet
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - rs
+      categories:
+        - all
+      storageversionhash: ""
+    - name: statefulsets
+      singularname: statefulset
+      namespaced: true
+      group: ""
+      version: ""
+      kind: StatefulSet
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - sts
+      categories:
+        - all
+      storageversionhash: ""
+    - name: deployments
+      singularname: deployment
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Deployment
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - deploy
+      categories:
+        - all
+      storageversionhash: ""
+    - name: controllerrevisions
+      singularname: controllerrevision
+      namespaced: true
+      group: ""
+      version: ""
+      kind: ControllerRevision
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: events.k8s.io/v1
+  apiresources:
+    - name: events
+      singularname: event
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Event
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - ev
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: authentication.k8s.io/v1
+  apiresources:
+    - name: tokenreviews
+      singularname: tokenreview
+      namespaced: false
+      group: ""
+      version: ""
+      kind: TokenReview
+      verbs:
+        - create
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: selfsubjectreviews
+      singularname: selfsubjectreview
+      namespaced: false
+      group: ""
+      version: ""
+      kind: SelfSubjectReview
+      verbs:
+        - create
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: authorization.k8s.io/v1
+  apiresources:
+    - name: subjectaccessreviews
+      singularname: subjectaccessreview
+      namespaced: false
+      group: ""
+      version: ""
+      kind: SubjectAccessReview
+      verbs:
+        - create
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: selfsubjectaccessreviews
+      singularname: selfsubjectaccessreview
+      namespaced: false
+      group: ""
+      version: ""
+      kind: SelfSubjectAccessReview
+      verbs:
+        - create
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: localsubjectaccessreviews
+      singularname: localsubjectaccessreview
+      namespaced: true
+      group: ""
+      version: ""
+      kind: LocalSubjectAccessReview
+      verbs:
+        - create
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: selfsubjectrulesreviews
+      singularname: selfsubjectrulesreview
+      namespaced: false
+      group: ""
+      version: ""
+      kind: SelfSubjectRulesReview
+      verbs:
+        - create
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: autoscaling/v2
+  apiresources:
+    - name: horizontalpodautoscalers
+      singularname: horizontalpodautoscaler
+      namespaced: true
+      group: ""
+      version: ""
+      kind: HorizontalPodAutoscaler
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - hpa
+      categories:
+        - all
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: autoscaling/v1
+  apiresources: []
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: batch/v1
+  apiresources:
+    - name: cronjobs
+      singularname: cronjob
+      namespaced: true
+      group: ""
+      version: ""
+      kind: CronJob
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - cj
+      categories:
+        - all
+      storageversionhash: ""
+    - name: jobs
+      singularname: job
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Job
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories:
+        - all
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: certificates.k8s.io/v1
+  apiresources:
+    - name: certificatesigningrequests
+      singularname: certificatesigningrequest
+      namespaced: false
+      group: ""
+      version: ""
+      kind: CertificateSigningRequest
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - csr
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: networking.k8s.io/v1
+  apiresources:
+    - name: ingressclasses
+      singularname: ingressclass
+      namespaced: false
+      group: ""
+      version: ""
+      kind: IngressClass
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: ingresses
+      singularname: ingress
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Ingress
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - ing
+      categories: []
+      storageversionhash: ""
+    - name: networkpolicies
+      singularname: networkpolicy
+      namespaced: true
+      group: ""
+      version: ""
+      kind: NetworkPolicy
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - netpol
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: policy/v1
+  apiresources:
+    - name: poddisruptionbudgets
+      singularname: poddisruptionbudget
+      namespaced: true
+      group: ""
+      version: ""
+      kind: PodDisruptionBudget
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - pdb
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: rbac.authorization.k8s.io/v1
+  apiresources:
+    - name: clusterrolebindings
+      singularname: clusterrolebinding
+      namespaced: false
+      group: ""
+      version: ""
+      kind: ClusterRoleBinding
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: roles
+      singularname: role
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Role
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: clusterroles
+      singularname: clusterrole
+      namespaced: false
+      group: ""
+      version: ""
+      kind: ClusterRole
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: rolebindings
+      singularname: rolebinding
+      namespaced: true
+      group: ""
+      version: ""
+      kind: RoleBinding
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: storage.k8s.io/v1
+  apiresources:
+    - name: csidrivers
+      singularname: csidriver
+      namespaced: false
+      group: ""
+      version: ""
+      kind: CSIDriver
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: csistoragecapacities
+      singularname: csistoragecapacity
+      namespaced: true
+      group: ""
+      version: ""
+      kind: CSIStorageCapacity
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: storageclasses
+      singularname: storageclass
+      namespaced: false
+      group: ""
+      version: ""
+      kind: StorageClass
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - sc
+      categories: []
+      storageversionhash: ""
+    - name: volumeattachments
+      singularname: volumeattachment
+      namespaced: false
+      group: ""
+      version: ""
+      kind: VolumeAttachment
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: csinodes
+      singularname: csinode
+      namespaced: false
+      group: ""
+      version: ""
+      kind: CSINode
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: admissionregistration.k8s.io/v1
+  apiresources:
+    - name: validatingadmissionpolicybindings
+      singularname: validatingadmissionpolicybinding
+      namespaced: false
+      group: ""
+      version: ""
+      kind: ValidatingAdmissionPolicyBinding
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories:
+        - api-extensions
+      storageversionhash: ""
+    - name: validatingwebhookconfigurations
+      singularname: validatingwebhookconfiguration
+      namespaced: false
+      group: ""
+      version: ""
+      kind: ValidatingWebhookConfiguration
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories:
+        - api-extensions
+      storageversionhash: ""
+    - name: mutatingwebhookconfigurations
+      singularname: mutatingwebhookconfiguration
+      namespaced: false
+      group: ""
+      version: ""
+      kind: MutatingWebhookConfiguration
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories:
+        - api-extensions
+      storageversionhash: ""
+    - name: validatingadmissionpolicies
+      singularname: validatingadmissionpolicy
+      namespaced: false
+      group: ""
+      version: ""
+      kind: ValidatingAdmissionPolicy
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories:
+        - api-extensions
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: apiextensions.k8s.io/v1
+  apiresources:
+    - name: customresourcedefinitions
+      singularname: customresourcedefinition
+      namespaced: false
+      group: ""
+      version: ""
+      kind: CustomResourceDefinition
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - crd
+        - crds
+      categories:
+        - api-extensions
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: scheduling.k8s.io/v1
+  apiresources:
+    - name: priorityclasses
+      singularname: priorityclass
+      namespaced: false
+      group: ""
+      version: ""
+      kind: PriorityClass
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames:
+        - pc
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: coordination.k8s.io/v1
+  apiresources:
+    - name: leases
+      singularname: lease
+      namespaced: true
+      group: ""
+      version: ""
+      kind: Lease
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: node.k8s.io/v1
+  apiresources:
+    - name: runtimeclasses
+      singularname: runtimeclass
+      namespaced: false
+      group: ""
+      version: ""
+      kind: RuntimeClass
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: discovery.k8s.io/v1
+  apiresources:
+    - name: endpointslices
+      singularname: endpointslice
+      namespaced: true
+      group: ""
+      version: ""
+      kind: EndpointSlice
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: flowcontrol.apiserver.k8s.io/v1
+  apiresources:
+    - name: flowschemas
+      singularname: flowschema
+      namespaced: false
+      group: ""
+      version: ""
+      kind: FlowSchema
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: prioritylevelconfigurations
+      singularname: prioritylevelconfiguration
+      namespaced: false
+      group: ""
+      version: ""
+      kind: PriorityLevelConfiguration
+      verbs:
+        - create
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: cdi.kubevirt.io/v1beta1
+  apiresources:
+    - name: datavolumes
+      singularname: datavolume
+      namespaced: true
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: DataVolume
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - dv
+        - dvs
+      categories:
+        - all
+      storageversionhash: ""
+    - name: cdiconfigs
+      singularname: cdiconfig
+      namespaced: false
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: CDIConfig
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: dataimportcrons
+      singularname: dataimportcron
+      namespaced: true
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: DataImportCron
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - dic
+        - dics
+      categories:
+        - all
+      storageversionhash: ""
+    - name: objecttransfers
+      singularname: objecttransfer
+      namespaced: false
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: ObjectTransfer
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - ot
+        - ots
+      categories: []
+      storageversionhash: ""
+    - name: cdis
+      singularname: cdi
+      namespaced: false
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: CDI
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - cdi
+        - cdis
+      categories: []
+      storageversionhash: ""
+    - name: volumeimportsources
+      singularname: volumeimportsource
+      namespaced: true
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: VolumeImportSource
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: storageprofiles
+      singularname: storageprofile
+      namespaced: false
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: StorageProfile
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: datasources
+      singularname: datasource
+      namespaced: true
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: DataSource
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - das
+      categories:
+        - all
+      storageversionhash: ""
+    - name: volumeclonesources
+      singularname: volumeclonesource
+      namespaced: true
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: VolumeCloneSource
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+    - name: volumeuploadsources
+      singularname: volumeuploadsource
+      namespaced: true
+      group: cdi.kubevirt.io
+      version: v1beta1
+      kind: VolumeUploadSource
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames: []
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: clone.kubevirt.io/v1beta1
+  apiresources:
+    - name: virtualmachineclones
+      singularname: virtualmachineclone
+      namespaced: true
+      group: clone.kubevirt.io
+      version: v1beta1
+      kind: VirtualMachineClone
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmclone
+        - vmclones
+      categories:
+        - all
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: clone.kubevirt.io/v1alpha1
+  apiresources: []
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: export.kubevirt.io/v1beta1
+  apiresources:
+    - name: virtualmachineexports
+      singularname: virtualmachineexport
+      namespaced: true
+      group: export.kubevirt.io
+      version: v1beta1
+      kind: VirtualMachineExport
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmexport
+        - vmexports
+      categories:
+        - all
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: export.kubevirt.io/v1alpha1
+  apiresources: []
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: forklift.cdi.kubevirt.io/v1beta1
+  apiresources:
+    - name: ovirtvolumepopulators
+      singularname: ovirtvolumepopulator
+      namespaced: true
+      group: forklift.cdi.kubevirt.io
+      version: v1beta1
+      kind: OvirtVolumePopulator
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - ovvp
+        - ovvps
+      categories: []
+      storageversionhash: ""
+    - name: openstackvolumepopulators
+      singularname: openstackvolumepopulator
+      namespaced: true
+      group: forklift.cdi.kubevirt.io
+      version: v1beta1
+      kind: OpenstackVolumePopulator
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - osvp
+        - osvps
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: instancetype.kubevirt.io/v1beta1
+  apiresources:
+    - name: virtualmachinepreferences
+      singularname: virtualmachinepreference
+      namespaced: true
+      group: instancetype.kubevirt.io
+      version: v1beta1
+      kind: VirtualMachinePreference
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmpref
+        - vmprefs
+        - vmp
+        - vmps
+      categories:
+        - all
+      storageversionhash: ""
+    - name: virtualmachineinstancetypes
+      singularname: virtualmachineinstancetype
+      namespaced: true
+      group: instancetype.kubevirt.io
+      version: v1beta1
+      kind: VirtualMachineInstancetype
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vminstancetype
+        - vminstancetypes
+        - vmf
+        - vmfs
+      categories:
+        - all
+      storageversionhash: ""
+    - name: virtualmachineclusterinstancetypes
+      singularname: virtualmachineclusterinstancetype
+      namespaced: false
+      group: instancetype.kubevirt.io
+      version: v1beta1
+      kind: VirtualMachineClusterInstancetype
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmclusterinstancetype
+        - vmclusterinstancetypes
+        - vmcf
+        - vmcfs
+      categories: []
+      storageversionhash: ""
+    - name: virtualmachineclusterpreferences
+      singularname: virtualmachineclusterpreference
+      namespaced: false
+      group: instancetype.kubevirt.io
+      version: v1beta1
+      kind: VirtualMachineClusterPreference
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmcp
+        - vmcps
+      categories: []
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: instancetype.kubevirt.io/v1alpha2
+  apiresources: []
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: instancetype.kubevirt.io/v1alpha1
+  apiresources: []
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: kubevirt.io/v1
+  apiresources:
+    - name: virtualmachines
+      singularname: virtualmachine
+      namespaced: true
+      group: kubevirt.io
+      version: v1
+      kind: VirtualMachine
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vm
+        - vms
+      categories:
+        - all
+      storageversionhash: ""
+    - name: virtualmachineinstances
+      singularname: virtualmachineinstance
+      namespaced: true
+      group: kubevirt.io
+      version: v1
+      kind: VirtualMachineInstance
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmi
+        - vmis
+      categories:
+        - all
+      storageversionhash: ""
+    - name: virtualmachineinstancereplicasets
+      singularname: virtualmachineinstancereplicaset
+      namespaced: true
+      group: kubevirt.io
+      version: v1
+      kind: VirtualMachineInstanceReplicaSet
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmirs
+        - vmirss
+      categories:
+        - all
+      storageversionhash: ""
+    - name: kubevirts
+      singularname: kubevirt
+      namespaced: true
+      group: kubevirt.io
+      version: v1
+      kind: KubeVirt
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - kv
+        - kvs
+      categories:
+        - all
+      storageversionhash: ""
+    - name: virtualmachineinstancemigrations
+      singularname: virtualmachineinstancemigration
+      namespaced: true
+      group: kubevirt.io
+      version: v1
+      kind: VirtualMachineInstanceMigration
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmim
+        - vmims
+      categories:
+        - all
+      storageversionhash: ""
+    - name: virtualmachineinstancepresets
+      singularname: virtualmachineinstancepreset
+      namespaced: true
+      group: kubevirt.io
+      version: v1
+      kind: VirtualMachineInstancePreset
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmipreset
+        - vmipresets
+      categories:
+        - all
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: kubevirt.io/v1alpha3
+  apiresources: []
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: migrations.kubevirt.io/v1alpha1
+  apiresources:
+    - name: migrationpolicies
+      singularname: migrationpolicy
+      namespaced: false
+      group: migrations.kubevirt.io
+      version: v1alpha1
+      kind: MigrationPolicy
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames: []
+      categories:
+        - all
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: pool.kubevirt.io/v1alpha1
+  apiresources:
+    - name: virtualmachinepools
+      singularname: virtualmachinepool
+      namespaced: true
+      group: pool.kubevirt.io
+      version: v1alpha1
+      kind: VirtualMachinePool
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmpool
+        - vmpools
+      categories:
+        - all
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: snapshot.kubevirt.io/v1beta1
+  apiresources:
+    - name: virtualmachinesnapshotcontents
+      singularname: virtualmachinesnapshotcontent
+      namespaced: true
+      group: snapshot.kubevirt.io
+      version: v1beta1
+      kind: VirtualMachineSnapshotContent
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmsnapshotcontent
+        - vmsnapshotcontents
+      categories:
+        - all
+      storageversionhash: ""
+    - name: virtualmachinesnapshots
+      singularname: virtualmachinesnapshot
+      namespaced: true
+      group: snapshot.kubevirt.io
+      version: v1beta1
+      kind: VirtualMachineSnapshot
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmsnapshot
+        - vmsnapshots
+      categories:
+        - all
+      storageversionhash: ""
+    - name: virtualmachinerestores
+      singularname: virtualmachinerestore
+      namespaced: true
+      group: snapshot.kubevirt.io
+      version: v1beta1
+      kind: VirtualMachineRestore
+      verbs:
+        - delete
+        - deletecollection
+        - get
+        - list
+        - patch
+        - create
+        - update
+        - watch
+      shortnames:
+        - vmrestore
+        - vmrestores
+      categories:
+        - all
+      storageversionhash: ""
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: snapshot.kubevirt.io/v1alpha1
+  apiresources: []
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: subresources.kubevirt.io/v1
+  apiresources: []
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: subresources.kubevirt.io/v1alpha3
+  apiresources: []
+- typemeta:
+    kind: ""
+    apiversion: ""
+  groupversion: upload.cdi.kubevirt.io/v1beta1
+  apiresources:
+    - name: uploadtokenrequests
+      singularname: uploadtokenrequest
+      namespaced: true
+      group: upload.cdi.kubevirt.io
+      version: v1beta1
+      kind: UploadTokenRequest
+      verbs:
+        - create
+      shortnames:
+        - utr
+        - utrs
+      categories: []
+      storageversionhash: ""

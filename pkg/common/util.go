@@ -1,0 +1,342 @@
+package common
+
+import (
+	"fmt"
+	"image"
+	"image/color"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"gaohoward.tools/k8s/resutil/pkg/config"
+	"gaohoward.tools/k8s/resutil/pkg/logs"
+	"gioui.org/layout"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
+	"gioui.org/unit"
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
+)
+
+var logger *zap.Logger
+
+func init() {
+	logger, _ = logs.NewAppLogger("common")
+}
+
+var VerticalSplitHandler layout.Widget = func(gtx layout.Context) layout.Dimensions {
+	rect := image.Rectangle{
+		Max: image.Point{
+			X: (gtx.Dp(unit.Dp(4))),
+			Y: (gtx.Constraints.Max.Y),
+		},
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 200}, clip.Rect(rect).Op())
+	return layout.Dimensions{Size: rect.Max}
+}
+
+var HorizontalSplitHandler layout.Widget = func(gtx layout.Context) layout.Dimensions {
+	rect := image.Rectangle{
+		Max: image.Point{
+			X: (gtx.Constraints.Max.X),
+			Y: (gtx.Dp(unit.Dp(4))),
+		},
+	}
+	paint.FillShape(gtx.Ops, color.NRGBA{A: 200}, clip.Rect(rect).Op())
+	return layout.Dimensions{Size: rect.Max}
+}
+
+func CreateCollectionConfig(name string, id string, desc string) *config.CollectionConfig {
+	if id == "" {
+		id = uuid.New().String()
+	}
+	cfg := &config.CollectionConfig{
+		Name:       name,
+		Id:         id,
+		Attributes: config.CollectionAttributes{},
+		CollectionConfigurable: config.CollectionConfigurable{
+			Description: "This is a collection of resources",
+			Properties: []config.NamedValue{
+				{
+					Name:  "namespace",
+					Value: "default",
+				},
+			},
+		},
+	}
+	if desc != "" {
+		cfg.Description = desc
+	}
+	return cfg
+}
+
+// Parse the config file for a collection
+// A desc file should have its first line to be the collection's id
+// the rest of the content will be returned as description
+func ParseCollectionConfig(content []byte) (*config.CollectionConfig, error) {
+
+	config := &config.CollectionConfig{}
+	err := yaml.Unmarshal(content, config)
+
+	return config, err
+}
+
+func ExtractNameFromPath(inPath string) (string, string) {
+	cleanPath := strings.TrimSpace(inPath)
+
+	if strings.HasSuffix(cleanPath, "/") {
+		return "", cleanPath
+	}
+	parts := strings.Split(inPath, "/")
+	name := parts[len(parts)-1]
+	path := strings.Join(parts[:len(parts)-1], "/")
+
+	return name, path
+}
+
+func MapToKeysString(theMap map[string]types.NamespacedName) string {
+	keys := make([]string, 0, len(theMap))
+	for k := range theMap {
+		keys = append(keys, k)
+	}
+	return strings.Join(keys, ",")
+}
+
+type ApiResourceEntry struct {
+	ApiVer string
+	Gv     string
+	ApiRes *v1.APIResource
+	Schema string
+}
+
+func (are *ApiResourceEntry) GetFileName() string {
+	fn := strings.ReplaceAll(are.ApiVer, "/", "_")
+	return fn + ".schema"
+}
+
+func (are *ApiResourceEntry) GetApiPath() string {
+	if are.Gv == "v1" {
+		return "api/v1"
+	}
+	return "apis/" + are.Gv
+}
+
+// file name is like apps_v1_statefulset.schema
+func SaveSchema(entry *ApiResourceEntry, groupDir string) error {
+	file := filepath.Join(groupDir, entry.GetFileName())
+
+	os.WriteFile(file, []byte(entry.Schema), 0644)
+	return nil
+}
+
+func LoadSchema(groupDir string, entry *ApiResourceEntry) error {
+	file := filepath.Join(groupDir, entry.GetFileName())
+
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return err
+	}
+
+	entry.Schema = string(data)
+
+	return nil
+}
+
+type ApiResourceInfo struct {
+	Cached  bool
+	ResList []*v1.APIResourceList
+	// key: v1/pods, apps/v1/statefulsets...
+	ResMap map[string]*ApiResourceEntry
+}
+
+func (a *ApiResourceInfo) FindApiResource(apiVer string) *ApiResourceEntry {
+	if r, ok := a.ResMap[apiVer]; ok {
+		return r
+	}
+	return nil
+}
+
+// rt could be like v1/pods or apps/v1/statefulsets
+func (a *ApiResourceInfo) HasResourceType(rt string) bool {
+	for _, arl := range a.ResList {
+		gv := arl.GroupVersion
+		for _, res := range arl.APIResources {
+			gvn := gv + "/" + res.Name
+			if gvn == rt {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+type ApiResourcePersister interface {
+	Load() (*ApiResourceInfo, error)
+	Save(*ApiResourceInfo) error
+}
+
+type FileApiResourcePersister struct {
+	filePath  string
+	schemaDir string
+	cache     []*v1.APIResourceList
+}
+
+// Save implements ApiResourcePersister.
+func (f *FileApiResourcePersister) Save(apiInfo *ApiResourceInfo) error {
+	if apiInfo == nil {
+		return nil
+	}
+	data, err := yaml.Marshal(apiInfo.ResList)
+	if err != nil {
+		return fmt.Errorf("failed to marshal api resources: %w", err)
+	}
+
+	err = os.WriteFile(f.filePath, data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write api resources to file: %w", err)
+	}
+
+	//persist schema
+	// Save the API resources to the config directory
+	for _, resList := range apiInfo.ResList {
+		groupDir := filepath.Join(f.schemaDir, resList.GroupVersion)
+		if err := os.MkdirAll(groupDir, 0755); err == nil {
+			for key, value := range apiInfo.ResMap {
+				if err := SaveSchema(value, groupDir); err != nil {
+					logger.Error("Failed to save schema for resource", zap.String("key", key), zap.Error(err))
+				}
+			}
+		} else {
+			logger.Warn("Cannot mkdir for group", zap.String("dir", groupDir))
+		}
+	}
+
+	return nil
+}
+
+func GetCachedApiResourceList() (*ApiResourceInfo, error) {
+	persister := GetApiResourcePersister()
+	return persister.Load()
+}
+
+func (f *FileApiResourcePersister) Load() (*ApiResourceInfo, error) {
+	result := &ApiResourceInfo{
+		ResList: make([]*v1.APIResourceList, 0),
+		ResMap:  make(map[string]*ApiResourceEntry),
+	}
+	if f.cache == nil {
+		f.cache = make([]*v1.APIResourceList, 0)
+		data, err := os.ReadFile(f.filePath)
+		if err != nil {
+			return nil, err
+		}
+		if err := yaml.Unmarshal(data, &f.cache); err != nil {
+			logger.Info("failed to unmarshal api-resource data", zap.String("data", string(data)))
+			return nil, err
+		}
+	}
+
+	result.ResList = f.cache
+
+	// now loading schema and populate the map
+	for _, res := range result.ResList {
+		for _, apiRes := range res.APIResources {
+			key := res.GroupVersion + "/" + apiRes.Name
+			entry := &ApiResourceEntry{
+				ApiVer: key,
+				Gv:     res.GroupVersion,
+				ApiRes: &apiRes,
+			}
+
+			groupDir := filepath.Join(f.schemaDir, entry.Gv)
+
+			LoadSchema(groupDir, entry)
+
+			result.ResMap[key] = entry
+		}
+	}
+
+	return result, nil
+}
+
+func GetApiResourcePersister() ApiResourcePersister {
+	cfgDir, err := config.GetConfigDir()
+	if err != nil {
+		logger.Warn("Cannot get config dir", zap.Error(err))
+		return &DummyApiResourcePersister{}
+	}
+	path := filepath.Join(cfgDir, "api-resources")
+	if err := os.MkdirAll(path, 0755); err != nil {
+		logger.Warn("Cannot make api-resources dir", zap.Error(err))
+		return &DummyApiResourcePersister{}
+	}
+	fpath := filepath.Join(path, "apis.yaml")
+
+	schemaPath := filepath.Join(cfgDir, "schemas")
+	if err := os.MkdirAll(schemaPath, 0755); err != nil {
+		logger.Warn("Cannot make schema dir", zap.Error(err))
+		return &DummyApiResourcePersister{}
+	}
+
+	persister := &FileApiResourcePersister{
+		filePath:  fpath,
+		schemaDir: schemaPath,
+	}
+	return persister
+}
+
+type DummyApiResourcePersister struct {
+}
+
+// Save implements ApiResourcePersister.
+func (d *DummyApiResourcePersister) Save(*ApiResourceInfo) error {
+	return nil
+}
+
+// Load implements ApiResourcePersister.
+func (d *DummyApiResourcePersister) Load() (*ApiResourceInfo, error) {
+	return nil, nil
+}
+
+func GetAllUnstructuredItems(data []*unstructured.UnstructuredList) []*unstructured.Unstructured {
+	items := make([]*unstructured.Unstructured, 0)
+	for _, l := range data {
+		for _, i := range l.Items {
+			items = append(items, &i)
+		}
+	}
+	return items
+}
+
+// this func move an element of a clice at [fromIndex] to [toIndex]
+// while keep the order of all the rest
+// for example a slice {0, 1, 2, 3, 4} if we want to move 3 to 0
+// the slice would be {3, 0, 1, 2, 4}, and if we ant to move 0 to 3
+// the slice would be {1, 2, 3, 0, 4}
+func ReorderSlice[E any](targetSlice []E, fromIndex int, toIndex int) {
+	fromItem := targetSlice[fromIndex]
+	toItem := targetSlice[toIndex]
+	//first move the item to its target position
+	targetSlice[toIndex] = fromItem
+	if fromIndex > toIndex {
+		for i := fromIndex; i > toIndex; i-- {
+			if i == toIndex+1 {
+				targetSlice[i] = toItem
+			} else {
+				targetSlice[i] = targetSlice[i-1]
+			}
+		}
+	} else if fromIndex < toIndex {
+		for i := fromIndex; i < toIndex; i++ {
+			if i == toIndex-1 {
+				targetSlice[i] = toItem
+			} else {
+				targetSlice[i] = targetSlice[i+1]
+			}
+		}
+	}
+}
