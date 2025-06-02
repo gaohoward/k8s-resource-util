@@ -3,6 +3,8 @@
 This is a tool that help users to manage Kubernetes resources.
 User can use this tool to create resources. The resources are grouped into collections that can be deployed together with some common purposes. For example a collection of resources usually can be deployed in to one namespace.
 
+![app](doc/app.png)
+
 ## Features
 
 - Generating template contents based on kinds
