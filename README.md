@@ -3,6 +3,8 @@
 This is a tool that help users to manage Kubernetes resources.
 User can use this tool to create resources. The resources are grouped into collections that can be deployed together with some common purposes. For example a collection of resources usually can be deployed in to one namespace.
 
+It is based on https://github.com/gioui/gio
+
 ![app](doc/app.png)
 
 ## Features
@@ -35,7 +37,9 @@ User can use this tool to create resources. The resources are grouped into colle
 
 ## Note
 
-If you get the following build error:
+* You need have access to a running k8s cluster to use much of its functionalities. You can easily set up a local Minikbe or Openshift Local (CRC) for testing purposes.
+
+* If you get the following build error:
 ```
 Package 'xkbcommon-x11' not found
 ```
