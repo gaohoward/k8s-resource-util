@@ -45,10 +45,7 @@ It is based on https://github.com/gioui/gio
 ```
 Package 'xkbcommon-x11' not found
 ```
-You need to install the missing dependency xkbcommon-x11 (Fedora for example):
-```
-sudo dnf install libxkbcommon libxkbcommon-devel libxkbcommon-utils
-```
+You need to install the missing dependencies described [here](https://gioui.org/doc/install/linux)
 
 ## Contributing
 
