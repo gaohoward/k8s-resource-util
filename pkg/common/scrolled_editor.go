@@ -134,7 +134,7 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 				lineNum.Color = COLOR.Gray()
 				lineNum.Font.Typeface = "monospace"
 
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Start}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						macro := op.Record(gtx.Ops)
 						numSize := lineNum.Layout(gtx)
