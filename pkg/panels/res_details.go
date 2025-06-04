@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
+	"gaohoward.tools/k8s/resutil/pkg/graphics"
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -232,9 +233,11 @@ func (cl *ContainerLog) Changed() bool {
 
 var readingMsg = "Reading..."
 
-func (cl *ContainerLog) GetContent(refresh bool) *string {
-	if cl.logReadTask == nil {
+func (cl *ContainerLog) LoadLog(reload bool) {
+	cl.mutex.Lock()
+	defer cl.mutex.Unlock()
 
+	if cl.logReadTask == nil {
 		ctxData, _ := common.GetContextData(common.CONTEXT_LONG_TASK_LIST)
 		if taskCtx, ok := ctxData.(*common.LongTasksContext); ok {
 			cl.logReadTask = taskCtx.AddTask("Reading pod log")
@@ -284,15 +287,20 @@ func (cl *ContainerLog) GetContent(refresh bool) *string {
 			}
 			cl.logReadTask.Start()
 		}
-	}
-	if cl.logReadTask.IsDone() && refresh {
-		cl.resetBuffer()
-		cl.GetContent(false)
-	}
 
-	if cl.buffer.Len() == 0 && !cl.logReadTask.IsDone() {
-		return &readingMsg
+	} else {
+		if cl.logReadTask.IsDone() && reload {
+			go func() {
+				cl.resetBuffer()
+				cl.LoadLog(false)
+			}()
+		}
 	}
+}
+
+func (cl *ContainerLog) GetContent(refresh bool) *string {
+
+	cl.LoadLog(refresh)
 
 	return cl.currentLog()
 }
@@ -300,6 +308,13 @@ func (cl *ContainerLog) GetContent(refresh bool) *string {
 func (cl *ContainerLog) currentLog() *string {
 	cl.mutex.RLock()
 	defer cl.mutex.RUnlock()
+
+	if cl.logReadTask != nil && !cl.logReadTask.IsDone() {
+		// reading started but no content read yet
+		if cl.buffer.Len() == 0 {
+			return &readingMsg
+		}
+	}
 
 	total := cl.buffer.Len()
 	if total >= cl.detail.bufferLimit {
@@ -317,6 +332,47 @@ func (cl *ContainerLog) currentLog() *string {
 	}
 
 	return cl.fullLog
+}
+
+type ReloadLogAction struct {
+	Name     string
+	btn      widget.Clickable
+	MenuFunc func(gtx layout.Context) layout.Dimensions
+	podLog   *PodLogDetail
+}
+
+// Execute implements common.MenuAction.
+func (r *ReloadLogAction) Execute(gtx layout.Context, se *common.ReadOnlyEditor) error {
+	if r.podLog.currentLog != nil {
+		r.podLog.currentLog.LoadLog(true)
+	}
+	return nil
+}
+
+// GetClickable implements common.MenuAction.
+func (r *ReloadLogAction) GetClickable() *widget.Clickable {
+	return &r.btn
+}
+
+// GetMenuOption implements common.MenuAction.
+func (r *ReloadLogAction) GetMenuOption() func(gtx layout.Context) layout.Dimensions {
+	return r.MenuFunc
+}
+
+// GetName implements common.MenuAction.
+func (r *ReloadLogAction) GetName() string {
+	return r.Name
+}
+
+func NewReloadLogAction(th *material.Theme, logDetail *PodLogDetail) *ReloadLogAction {
+	reloadAct := &ReloadLogAction{
+		Name:   "Reload",
+		podLog: logDetail,
+	}
+	reloadAct.MenuFunc = func(gtx layout.Context) layout.Dimensions {
+		return common.ItemFunc(th, gtx, &reloadAct.btn, reloadAct.Name, graphics.ReloadIcon)
+	}
+	return reloadAct
 }
 
 func (pd *PodLogDetail) Init(th *material.Theme) {
@@ -340,7 +396,11 @@ func (pd *PodLogDetail) Init(th *material.Theme) {
 		pd.containerLogs = append(pd.containerLogs, cl)
 	}
 
-	pd.logEditor = common.NewReadOnlyEditor(th, "log", 16)
+	actions := make([]common.MenuAction, 0)
+	reloadLogAct := NewReloadLogAction(th, pd)
+	actions = append(actions, reloadLogAct)
+
+	pd.logEditor = common.NewReadOnlyEditor(th, "log", 16, actions)
 
 	pd.divider = component.Divider(th)
 	pd.divider.Fill = common.COLOR.Gray()

@@ -27,32 +27,92 @@ type ReadOnlyEditor struct {
 	text     *string
 
 	menuState       component.MenuState
-	copyBtn         widget.Clickable
 	menuContextArea component.ContextArea
+	customActionMap map[string]MenuAction
 }
 
-func NewReadOnlyEditor(th *material.Theme, hint string, textSize int) *ReadOnlyEditor {
+func (se *ReadOnlyEditor) GetText() string {
+	if se.text != nil {
+		return *se.text
+	} else {
+		return ""
+	}
+}
+
+type MenuAction interface {
+	GetName() string
+	GetMenuOption() func(gtx layout.Context) layout.Dimensions
+	GetClickable() *widget.Clickable
+	Execute(gtx layout.Context, se *ReadOnlyEditor) error
+}
+
+type CopyMenuAction struct {
+	Name     string
+	copyBtn  widget.Clickable
+	MenuFunc func(gtx layout.Context) layout.Dimensions
+}
+
+// GetMenuOption implements MenuAction.
+func (cma *CopyMenuAction) GetMenuOption() func(gtx layout.Context) layout.Dimensions {
+	return cma.MenuFunc
+}
+
+// GetName implements MenuAction.
+func (cma *CopyMenuAction) GetName() string {
+	return cma.Name
+}
+
+func (cma *CopyMenuAction) GetClickable() *widget.Clickable {
+	return &cma.copyBtn
+}
+
+func (cma *CopyMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
+	gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(editor.GetText()))})
+	return nil
+}
+
+func NewCopyMenuAction(th *material.Theme) *CopyMenuAction {
+	copyAct := &CopyMenuAction{
+		Name: "Copy",
+	}
+	copyAct.MenuFunc = func(gtx layout.Context) layout.Dimensions {
+		return ItemFunc(th, gtx, &copyAct.copyBtn, copyAct.Name, graphics.CopyIcon)
+	}
+	return copyAct
+}
+
+func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []MenuAction) *ReadOnlyEditor {
 	se := &ReadOnlyEditor{
-		th:       th,
-		textSize: textSize,
+		th:              th,
+		textSize:        textSize,
+		customActionMap: make(map[string]MenuAction),
 	}
 
 	se.list.Axis = layout.Vertical
 
+	menuOptions := make([]func(gtx layout.Context) layout.Dimensions, 0)
+
+	copyAct := NewCopyMenuAction(th)
+	allActs := make([]MenuAction, 0)
+	allActs = append(allActs, copyAct)
+	allActs = append(allActs, actions...)
+
+	for _, action := range allActs {
+		se.customActionMap[action.GetName()] = action
+		menuOptions = append(menuOptions, action.GetMenuOption())
+	}
+
 	se.menuState = component.MenuState{
-		Options: []func(gtx component.C) component.D{
-			func(gtx component.C) component.D {
-				return ItemFunc(th, gtx, &se.copyBtn, "Copy", graphics.CopyIcon)
-			},
-		},
+		Options: menuOptions,
 	}
 	return se
 }
 
 func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
-	if se.copyBtn.Clicked(gtx) {
-		if se.text != nil {
-			gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(*se.text))})
+
+	for _, v := range se.customActionMap {
+		if v.GetClickable().Clicked(gtx) {
+			v.Execute(gtx, se)
 		}
 	}
 
