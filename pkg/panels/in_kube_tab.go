@@ -410,6 +410,7 @@ func NewInKubeTab(th *material.Theme, client *common.K8sClient) *InKubeTab {
 			tab.RefreshNamespaces()
 			tab.RefreshApiResources(true)
 			tab.searchField.SetText("")
+			tab.currentCriteria.Reset()
 		}
 		return layout.Inset{Top: 4, Bottom: 0, Left: 0, Right: 4}.Layout(gtx, reloadBtn.Layout)
 	})
