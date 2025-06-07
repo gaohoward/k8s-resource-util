@@ -17,8 +17,10 @@ import (
 	"gioui.org/x/component"
 	om "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -76,7 +78,7 @@ type InKubeTab struct {
 
 type DetailPanel struct {
 	detailContent layout.Widget
-	owner         IResourceDetail
+	owner         common.IResourceDetail
 }
 
 func (t *InKubeTab) Query() ([]*unstructured.UnstructuredList, error) {
@@ -292,15 +294,89 @@ type SearchResultItem struct {
 	item          *unstructured.Unstructured
 	clickable     widget.Clickable
 	label0        material.LabelStyle
-	details       []IResourceDetail
-	currentDetail IResourceDetail
+	details       []common.IResourceDetail
+	currentDetail common.IResourceDetail
+	statusInfo    common.ResStatusInfo
 }
 
-func (s *SearchResultItem) GetDetails(gtx layout.Context, th *material.Theme) []IResourceDetail {
+func (s *SearchResultItem) SupportStatus() bool {
+	return s.item.GetKind() == "Pod"
+}
+
+func (s *SearchResultItem) GetStatusIcon() common.ResStatusInfo {
+	if s.item.GetKind() == "Pod" && s.statusInfo == nil {
+
+		var pod corev1.Pod
+
+		err := runtime.DefaultUnstructuredConverter.
+			FromUnstructured(s.item.Object, &pod)
+		if err != nil {
+			logger.Error("error convert pos", zap.Error(err))
+		} else {
+
+			podStatusInfo := common.NewPodStatusInfo(pod.GetName())
+
+			for _, con := range pod.Status.InitContainerStatuses {
+				if con.State.Terminated != nil {
+					if con.State.Terminated.ExitCode != 0 {
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason)
+						podStatusInfo.SetStatus(common.PodError, "container terminated with error")
+					} else {
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message)
+						podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally")
+					}
+				} else if con.State.Waiting != nil {
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason)
+					podStatusInfo.SetStatus(common.PodError, "container waiting")
+				} else if con.State.Running != nil {
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String())
+					podStatusInfo.SetStatus(common.PodRunning, "container running")
+				} else {
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state")
+					podStatusInfo.SetStatus(common.PodUnknown, "container state unknown")
+				}
+			}
+
+			allContainerRunning := true
+
+			for _, con := range pod.Status.ContainerStatuses {
+				if con.State.Terminated != nil {
+					if con.State.Terminated.ExitCode != 0 {
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason)
+						podStatusInfo.SetStatus(common.PodError, "container terminated with error")
+						allContainerRunning = false
+					} else {
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message)
+						podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally")
+						allContainerRunning = false
+					}
+				} else if con.State.Waiting != nil {
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason)
+					podStatusInfo.SetStatus(common.PodError, "container waiting")
+					allContainerRunning = false
+				} else if con.State.Running != nil {
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String())
+				} else {
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state")
+					podStatusInfo.SetStatus(common.PodUnknown, "container state unknown")
+					allContainerRunning = false
+				}
+			}
+			if allContainerRunning {
+				podStatusInfo.SetStatus(common.PodRunning, "container running")
+			}
+			s.statusInfo = podStatusInfo
+			return podStatusInfo
+		}
+	}
+	return s.statusInfo
+}
+
+func (s *SearchResultItem) GetDetails(gtx layout.Context, th *material.Theme) []common.IResourceDetail {
 	if len(s.details) == 0 {
-		s.details = make([]IResourceDetail, 0)
+		s.details = make([]common.IResourceDetail, 0)
 		s.details = append(s.details, NewYamlDetail(th, s.item))
-		extDetails := GetExtApiDetails(s.item, th)
+		extDetails := GetExtApiDetails(s.item, th, s.statusInfo)
 		if len(extDetails) > 0 {
 			s.details = append(s.details, extDetails...)
 		}
@@ -328,6 +404,21 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 	title := tab.currentResultItem.item.GetKind() + ": " + tab.currentResultItem.item.GetName()
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if tab.currentResultItem.SupportStatus() {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						sicon := tab.currentResultItem.GetStatusIcon()
+						if sicon != nil {
+							return sicon.Layout(gtx)
+						}
+						logger.Info("No status icon for resource", zap.String("name", tab.currentResultItem.item.GetName()))
+						return layout.Dimensions{}
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return material.Label(th, unit.Sp(20), title).Layout(gtx)
+					}),
+				)
+			}
 			return material.Label(th, unit.Sp(20), title).Layout(gtx)
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -339,7 +430,7 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 			resDetails := tab.currentResultItem.GetDetails(gtx, th)
 			return tab.detailList.Layout(gtx, len(resDetails), func(gtx layout.Context, index int) layout.Dimensions {
 				detail := resDetails[index]
-				if detail.getClickable().Clicked(gtx) {
+				if detail.GetClickable().Clicked(gtx) {
 					if tab.currentResultItem.currentDetail != detail {
 						if tab.currentResultItem.currentDetail != nil {
 							tab.currentResultItem.currentDetail.SetSelected(false)
@@ -351,7 +442,7 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 
 				return layout.Inset{Top: 0, Bottom: 0, Left: unit.Dp(6), Right: unit.Dp(4)}.Layout(gtx,
 					func(gtx layout.Context) layout.Dimensions {
-						return material.Clickable(gtx, detail.getClickable(), detail.getLabel())
+						return material.Clickable(gtx, detail.GetClickable(), detail.GetLabel())
 					})
 			})
 		}),

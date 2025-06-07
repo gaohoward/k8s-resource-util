@@ -139,3 +139,28 @@ var CopyIcon *widget.Icon = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.ContentContentCopy)
 	return icon
 }()
+
+var RunningIcon *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ActionCheckCircle)
+	return icon
+}()
+
+var TerminatedIcon *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ContentRemoveCircleOutline)
+	return icon
+}()
+
+var ErrorIcon *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.AlertErrorOutline)
+	return icon
+}()
+
+var UnknownIcon *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ActionInfoOutline)
+	return icon
+}()
+
+var HelpIcon *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ActionHelpOutline)
+	return icon
+}()

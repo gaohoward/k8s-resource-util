@@ -20,14 +20,6 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-type IResourceDetail interface {
-	GetContent() layout.Widget
-	getClickable() *widget.Clickable
-	getLabel() layout.Widget
-	Changed() bool
-	SetSelected(state bool)
-}
-
 type ResourceDetail struct {
 	detailName string
 	clickable  widget.Clickable
@@ -46,13 +38,13 @@ func NewDetail(th *material.Theme, name string, item *unstructured.Unstructured)
 	return d
 }
 
-// getClickable implements ResourceDetail.
-func (r *ResourceDetail) getClickable() *widget.Clickable {
+// GetClickable implements ResourceDetail.
+func (r *ResourceDetail) GetClickable() *widget.Clickable {
 	return &r.clickable
 }
 
-// getWidget implements ResourceDetail.
-func (r *ResourceDetail) getLabel() layout.Widget {
+// GetLabel implements ResourceDetail.
+func (r *ResourceDetail) GetLabel() layout.Widget {
 	if r.isSelected {
 		r.label.Color = common.COLOR.Blue()
 		r.label.Font.Weight = font.Bold
@@ -74,7 +66,7 @@ type YamlDetail struct {
 	ymlArea     widget.Editor
 }
 
-func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) IResourceDetail {
+func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) common.IResourceDetail {
 	d := &YamlDetail{
 		ResourceDetail: NewDetail(th, "yaml", item),
 	}
@@ -129,9 +121,9 @@ func (p *PodLogDetail) Changed() bool {
 	return false
 }
 
-func (cl *ContainerLog) GetDividerWidth(gtx layout.Context) layout.Dimensions {
+func (cl *ContainerLog) GetDividerWidth(gtx layout.Context, tabFunc func(gtx layout.Context, cl *ContainerLog) layout.Dimensions) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
-	size := cl.label.Layout(gtx)
+	size := tabFunc(gtx, cl)
 	macro.Stop()
 
 	return size
@@ -139,6 +131,32 @@ func (cl *ContainerLog) GetDividerWidth(gtx layout.Context) layout.Dimensions {
 
 // GetContent implements IResourceDetail.
 func (p *PodLogDetail) GetContent() layout.Widget {
+
+	containerTab := func(gtx layout.Context, conLog *ContainerLog) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						// the icon
+						gtx.Constraints.Min.X = 16
+						if conLog.status == nil {
+							logger.Error("no status for container!", zap.String("name", conLog.name))
+							return layout.Dimensions{}
+						} else {
+							return conLog.status.Layout(gtx)
+						}
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						// the label
+						return material.Clickable(gtx, &conLog.clickable, func(gtx layout.Context) layout.Dimensions {
+							return conLog.label.Layout(gtx)
+						})
+					}),
+				)
+			}),
+		)
+	}
+
 	return func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			// container tabs
@@ -154,13 +172,16 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 					if p.currentLog == conLog {
 						conLog.label.Font.Weight = font.Bold
 						conLog.label.Color = common.COLOR.Blue()
-						size := conLog.GetDividerWidth(gtx).Size.X
+						dim := conLog.GetDividerWidth(gtx, containerTab)
+						size := dim.Size.X
+						// logger.Info("----size y", zap.Int("y", dim.Size.Y))
+						// logger.Info("gtx ", zap.Int("max", gtx.Constraints.Max.Y), zap.Int("x", gtx.Constraints.Max.X))
+						// logger.Info("gtx ", zap.Int("min", gtx.Constraints.Min.Y), zap.Int("x", gtx.Constraints.Min.X))
 						return layout.Inset{Top: 0, Bottom: unit.Dp(16), Left: 0, Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-									return material.Clickable(gtx, &conLog.clickable, func(gtx layout.Context) layout.Dimensions {
-										return conLog.label.Layout(gtx)
-									})
+									gtx.Constraints.Min.Y = dim.Size.Y
+									return containerTab(gtx, conLog)
 								}),
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 									gtx.Constraints.Min.X = size
@@ -172,9 +193,7 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 					conLog.label.Font.Weight = font.Normal
 					conLog.label.Color = common.COLOR.Black()
 					return layout.Inset{Top: 0, Bottom: unit.Dp(6), Left: 0, Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return material.Clickable(gtx, &conLog.clickable, func(gtx layout.Context) layout.Dimensions {
-							return conLog.label.Layout(gtx)
-						})
+						return containerTab(gtx, conLog)
 					})
 				})
 			}),
@@ -204,6 +223,8 @@ type ContainerLog struct {
 	fullLog              *string
 	warned               bool
 	logChangeContextFlag string
+
+	status *common.StatusIcon
 }
 
 func (cl *ContainerLog) addLog(newLog string) {
@@ -375,7 +396,7 @@ func NewReloadLogAction(th *material.Theme, logDetail *PodLogDetail) *ReloadLogA
 	return reloadAct
 }
 
-func (pd *PodLogDetail) Init(th *material.Theme) {
+func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) {
 	client := common.GetK8sClient()
 	cons, err := client.GetPodContainers(pd.item)
 	if err != nil {
@@ -390,6 +411,11 @@ func (pd *PodLogDetail) Init(th *material.Theme) {
 			buffer:               new(bytes.Buffer),
 			fullLog:              new(string),
 			logChangeContextFlag: fmt.Sprintf("%s%d", POD_LOG_CHANGE_FLAG, i),
+		}
+		if podStatus, ok := status.(*common.PodStatusInfo); ok {
+			if cstatus, ok := podStatus.ContainersInfo[c]; ok {
+				cl.status = cstatus.StatusIcon
+			}
 		}
 		cl.label.TextSize = unit.Sp(14)
 		common.RegisterContext(cl.logChangeContextFlag, false, true)
@@ -411,22 +437,22 @@ func (pd *PodLogDetail) Init(th *material.Theme) {
 	pd.theme = th
 }
 
-func NewPodLogDetail(item *unstructured.Unstructured, th *material.Theme) *PodLogDetail {
+func NewPodLogDetail(item *unstructured.Unstructured, th *material.Theme, status common.ResStatusInfo) *PodLogDetail {
 	pd := &PodLogDetail{
 		ResourceDetail: NewDetail(th, "logs", item),
 		containerLogs:  make([]*ContainerLog, 0),
 		bufferLimit:    1024 * 1024 * 10,
 	}
-	pd.Init(th)
+	pd.Init(th, status)
 
 	return pd
 }
 
-func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme) []IResourceDetail {
-	result := make([]IResourceDetail, 0)
+func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, status common.ResStatusInfo) []common.IResourceDetail {
+	result := make([]common.IResourceDetail, 0)
 
 	if item.GetKind() == "Pod" {
-		result = append(result, NewPodLogDetail(item, th))
+		result = append(result, NewPodLogDetail(item, th, status))
 	}
 
 	return result

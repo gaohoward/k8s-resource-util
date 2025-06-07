@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"image/color"
 	"log"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"gaohoward.tools/k8s/resutil/pkg/config"
+	"gaohoward.tools/k8s/resutil/pkg/graphics"
 	"gaohoward.tools/k8s/resutil/pkg/resources/cached"
 	"gioui.org/layout"
 	"gioui.org/widget"
@@ -1515,4 +1517,119 @@ var ItemFunc = func(th *material.Theme, gtx layout.Context, btn *widget.Clickabl
 	item.Icon = icon
 	item.Hint = component.MenuHintText(th, "")
 	return item.Layout(gtx)
+}
+
+type IResourceDetail interface {
+	GetContent() layout.Widget
+	GetClickable() *widget.Clickable
+	GetLabel() layout.Widget
+	Changed() bool
+	SetSelected(state bool)
+}
+
+type StatusType int
+
+const (
+	ContainerRunning StatusType = iota
+	ContainerTerminated
+	ContainerTerminatedWithError
+	ContainerError
+	ContainerUnknown
+	PodError
+	PodUnknown
+	PodRunning
+)
+
+type StatusIcon struct {
+	Status StatusType
+	Reason string
+	icon   *widget.Icon
+	color  color.NRGBA
+}
+
+type ResStatusInfo interface {
+	SetStatus(status StatusType, reason string)
+	Layout(gtx layout.Context) layout.Dimensions
+}
+
+type ResStatus struct {
+	ResName string
+	*StatusIcon
+}
+
+func (p *ResStatus) SetStatus(status StatusType, reason string) {
+	p.StatusIcon = NewStatusIcon(status, reason)
+}
+
+type PodStatusInfo struct {
+	*ResStatus
+	ContainersInfo map[string]*PodContainerInfo
+}
+
+func (p *PodStatusInfo) SetContainerStatus(conName string, status StatusType, reason string) {
+	p.ContainersInfo[conName] = &PodContainerInfo{
+		Name:       conName,
+		StatusIcon: NewStatusIcon(status, reason),
+	}
+}
+
+func NewStatusIcon(status StatusType, reason string) *StatusIcon {
+	var icon *widget.Icon
+	var color color.NRGBA
+
+	switch status {
+	case ContainerRunning:
+		icon = graphics.RunningIcon
+		color = COLOR.Green()
+	case ContainerTerminated:
+		icon = graphics.TerminatedIcon
+		color = COLOR.Blue()
+	case ContainerTerminatedWithError:
+		icon = graphics.TerminatedIcon
+		color = COLOR.Red()
+	case ContainerError:
+		icon = graphics.ErrorIcon
+		color = COLOR.Red()
+	case ContainerUnknown:
+		icon = graphics.UnknownIcon
+		color = COLOR.Gray()
+	case PodError:
+		icon = graphics.ErrorIcon
+		color = COLOR.Red()
+	case PodUnknown:
+		icon = graphics.UnknownIcon
+		color = COLOR.Gray()
+	case PodRunning:
+		icon = graphics.RunningIcon
+		color = COLOR.Green()
+	default:
+		icon = graphics.HelpIcon
+		color = COLOR.Gray()
+	}
+
+	return &StatusIcon{
+		Status: status,
+		Reason: reason,
+		icon:   icon,
+		color:  color,
+	}
+}
+
+func NewPodStatusInfo(podName string) *PodStatusInfo {
+	return &PodStatusInfo{
+		ResStatus: &ResStatus{
+			ResName:    podName,
+			StatusIcon: NewStatusIcon(PodUnknown, ""),
+		},
+		ContainersInfo: make(map[string]*PodContainerInfo, 0),
+	}
+}
+
+type PodContainerInfo struct {
+	Name string
+	*StatusIcon
+}
+
+func (si *StatusIcon) Layout(gtx layout.Context) layout.Dimensions {
+	return si.icon.Layout(gtx, si.color)
 }
