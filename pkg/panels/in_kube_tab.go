@@ -303,7 +303,7 @@ func (s *SearchResultItem) SupportStatus() bool {
 	return s.item.GetKind() == "Pod"
 }
 
-func (s *SearchResultItem) GetStatusIcon() common.ResStatusInfo {
+func (s *SearchResultItem) GetStatusIcon(th *material.Theme) common.ResStatusInfo {
 	if s.item.GetKind() == "Pod" && s.statusInfo == nil {
 
 		var pod corev1.Pod
@@ -314,26 +314,26 @@ func (s *SearchResultItem) GetStatusIcon() common.ResStatusInfo {
 			logger.Error("error convert pos", zap.Error(err))
 		} else {
 
-			podStatusInfo := common.NewPodStatusInfo(pod.GetName())
+			podStatusInfo := common.NewPodStatusInfo(pod.GetName(), th)
 
 			for _, con := range pod.Status.InitContainerStatuses {
 				if con.State.Terminated != nil {
 					if con.State.Terminated.ExitCode != 0 {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason)
-						podStatusInfo.SetStatus(common.PodError, "container terminated with error")
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason, th)
+						podStatusInfo.SetStatus(common.PodError, "container terminated with error", th)
 					} else {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message)
-						podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally")
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message, th)
+						podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally", th)
 					}
 				} else if con.State.Waiting != nil {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason)
-					podStatusInfo.SetStatus(common.PodError, "container waiting")
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason, th)
+					podStatusInfo.SetStatus(common.PodError, "container waiting", th)
 				} else if con.State.Running != nil {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String())
-					podStatusInfo.SetStatus(common.PodRunning, "container running")
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String(), th)
+					podStatusInfo.SetStatus(common.PodRunning, "container running", th)
 				} else {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state")
-					podStatusInfo.SetStatus(common.PodUnknown, "container state unknown")
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state", th)
+					podStatusInfo.SetStatus(common.PodUnknown, "container state unknown", th)
 				}
 			}
 
@@ -342,28 +342,28 @@ func (s *SearchResultItem) GetStatusIcon() common.ResStatusInfo {
 			for _, con := range pod.Status.ContainerStatuses {
 				if con.State.Terminated != nil {
 					if con.State.Terminated.ExitCode != 0 {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason)
-						podStatusInfo.SetStatus(common.PodError, "container terminated with error")
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason, th)
+						podStatusInfo.SetStatus(common.PodError, "container terminated with error", th)
 						allContainerRunning = false
 					} else {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message)
-						podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally")
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message, th)
+						podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally", th)
 						allContainerRunning = false
 					}
 				} else if con.State.Waiting != nil {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason)
-					podStatusInfo.SetStatus(common.PodError, "container waiting")
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason, th)
+					podStatusInfo.SetStatus(common.PodError, "container waiting", th)
 					allContainerRunning = false
 				} else if con.State.Running != nil {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String())
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String(), th)
 				} else {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state")
-					podStatusInfo.SetStatus(common.PodUnknown, "container state unknown")
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state", th)
+					podStatusInfo.SetStatus(common.PodUnknown, "container state unknown", th)
 					allContainerRunning = false
 				}
 			}
 			if allContainerRunning {
-				podStatusInfo.SetStatus(common.PodRunning, "container running")
+				podStatusInfo.SetStatus(common.PodRunning, "container running", th)
 			}
 			s.statusInfo = podStatusInfo
 			return podStatusInfo
@@ -407,9 +407,9 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 			if tab.currentResultItem.SupportStatus() {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						sicon := tab.currentResultItem.GetStatusIcon()
+						sicon := tab.currentResultItem.GetStatusIcon(th)
 						if sicon != nil {
-							return sicon.Layout(gtx)
+							return sicon.Layout(gtx, 20)
 						}
 						logger.Info("No status icon for resource", zap.String("name", tab.currentResultItem.item.GetName()))
 						return layout.Dimensions{}
@@ -521,8 +521,8 @@ func NewInKubeTab(th *material.Theme, client *common.K8sClient) *InKubeTab {
 	tab.searchField.ReadOnly = true
 
 	exBtn := material.IconButton(th, &tab.exQueryButton, graphics.ExecIcon, "go")
-	exBtn.Inset = layout.UniformInset(unit.Dp(0))
-	exBtn.Size = unit.Dp(18)
+	exBtn.Inset = layout.Inset{Top: 0, Bottom: 0, Left: 1, Right: 1}
+	exBtn.Size = unit.Dp(22)
 
 	nsSwitch := material.CheckBox(th, &tab.showNamespaceButton, "ns")
 	nsSwitch.Size = unit.Dp(16)

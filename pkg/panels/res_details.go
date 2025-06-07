@@ -143,7 +143,7 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 							logger.Error("no status for container!", zap.String("name", conLog.name))
 							return layout.Dimensions{}
 						} else {
-							return conLog.status.Layout(gtx)
+							return conLog.status.Layout(gtx, 16)
 						}
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -163,7 +163,7 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return p.conLogList.Layout(gtx, len(p.containerLogs), func(gtx layout.Context, index int) layout.Dimensions {
 					conLog := p.containerLogs[index]
-					if conLog.clickable.Clicked(gtx) {
+					if conLog.clickable.Clicked(gtx) || conLog.status.Clickable.Clicked(gtx) {
 						if p.currentLog != conLog {
 							p.currentLog = conLog
 							p.logEditor.SetText(p.currentLog.GetContent(false))

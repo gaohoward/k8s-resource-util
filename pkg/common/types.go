@@ -16,6 +16,7 @@ import (
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
 	"gaohoward.tools/k8s/resutil/pkg/resources/cached"
 	"gioui.org/layout"
+	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
@@ -1529,6 +1530,25 @@ type IResourceDetail interface {
 
 type StatusType int
 
+func (s StatusType) String() string {
+	switch s {
+	case ContainerRunning:
+		return "Running"
+	case ContainerTerminated:
+		return "Terminated"
+	case ContainerTerminatedWithError:
+		return "Terminated with Error"
+	case ContainerError:
+		return "Error"
+	case ContainerUnknown:
+		return "Unknown"
+	case PodError:
+		return "Pod Error"
+	default:
+		return "Unknown"
+	}
+}
+
 const (
 	ContainerRunning StatusType = iota
 	ContainerTerminated
@@ -1541,15 +1561,21 @@ const (
 )
 
 type StatusIcon struct {
-	Status StatusType
-	Reason string
-	icon   *widget.Icon
-	color  color.NRGBA
+	Status     StatusType
+	Reason     string
+	icon       *widget.Icon
+	color      color.NRGBA
+	background color.NRGBA
+	Tooltip    component.Tooltip
+	TipArea    component.TipArea
+	Clickable  widget.Clickable
+	th         *material.Theme
+	button     component.TipIconButtonStyle
 }
 
 type ResStatusInfo interface {
-	SetStatus(status StatusType, reason string)
-	Layout(gtx layout.Context) layout.Dimensions
+	SetStatus(status StatusType, reason string, th *material.Theme)
+	Layout(gtx layout.Context, size unit.Dp) layout.Dimensions
 }
 
 type ResStatus struct {
@@ -1557,8 +1583,8 @@ type ResStatus struct {
 	*StatusIcon
 }
 
-func (p *ResStatus) SetStatus(status StatusType, reason string) {
-	p.StatusIcon = NewStatusIcon(status, reason)
+func (p *ResStatus) SetStatus(status StatusType, reason string, th *material.Theme) {
+	p.StatusIcon = NewStatusIcon(status, reason, th)
 }
 
 type PodStatusInfo struct {
@@ -1566,60 +1592,83 @@ type PodStatusInfo struct {
 	ContainersInfo map[string]*PodContainerInfo
 }
 
-func (p *PodStatusInfo) SetContainerStatus(conName string, status StatusType, reason string) {
+func (p *PodStatusInfo) SetContainerStatus(conName string, status StatusType, reason string, th *material.Theme) {
 	p.ContainersInfo[conName] = &PodContainerInfo{
 		Name:       conName,
-		StatusIcon: NewStatusIcon(status, reason),
+		StatusIcon: NewStatusIcon(status, reason, th),
 	}
 }
 
-func NewStatusIcon(status StatusType, reason string) *StatusIcon {
+func NewStatusIcon(status StatusType, reason string, th *material.Theme) *StatusIcon {
 	var icon *widget.Icon
-	var color color.NRGBA
+	var co color.NRGBA
+	var bg color.NRGBA
 
 	switch status {
 	case ContainerRunning:
 		icon = graphics.RunningIcon
-		color = COLOR.Green()
+		co = COLOR.DarkGreen()
 	case ContainerTerminated:
 		icon = graphics.TerminatedIcon
-		color = COLOR.Blue()
+		co = COLOR.Blue()
 	case ContainerTerminatedWithError:
 		icon = graphics.TerminatedIcon
-		color = COLOR.Red()
+		co = COLOR.Red()
+		bg = COLOR.White()
 	case ContainerError:
 		icon = graphics.ErrorIcon
-		color = COLOR.Red()
+		co = COLOR.Red()
+		bg = COLOR.White()
 	case ContainerUnknown:
 		icon = graphics.UnknownIcon
-		color = COLOR.Gray()
+		co = COLOR.Gray()
 	case PodError:
 		icon = graphics.ErrorIcon
-		color = COLOR.Red()
+		co = COLOR.Red()
+		bg = COLOR.White()
 	case PodUnknown:
 		icon = graphics.UnknownIcon
-		color = COLOR.Gray()
+		co = COLOR.Gray()
 	case PodRunning:
 		icon = graphics.RunningIcon
-		color = COLOR.Green()
+		co = COLOR.DarkGreen()
 	default:
 		icon = graphics.HelpIcon
-		color = COLOR.Gray()
+		co = COLOR.Gray()
 	}
 
-	return &StatusIcon{
-		Status: status,
-		Reason: reason,
-		icon:   icon,
-		color:  color,
+	si := &StatusIcon{
+		Status:     status,
+		Reason:     reason,
+		icon:       icon,
+		color:      co,
+		background: bg,
+		th:         th,
 	}
+
+	tipText := si.Reason
+	if strings.TrimSpace(tipText) == "" {
+		tipText = si.Status.String()
+	}
+	si.Tooltip = component.DesktopTooltip(th, tipText)
+
+	si.button = component.TipIconButtonStyle{
+		Tooltip:         si.Tooltip,
+		IconButtonStyle: material.IconButton(si.th, &si.Clickable, si.icon, tipText),
+		State:           &si.TipArea,
+	}
+	si.button.Color = si.color
+	si.button.IconButtonStyle.Inset = layout.Inset{Top: 0, Bottom: 0, Left: 0, Right: 0}
+	si.button.Background = COLOR.White()
+
+	return si
 }
 
-func NewPodStatusInfo(podName string) *PodStatusInfo {
+func NewPodStatusInfo(podName string, th *material.Theme) *PodStatusInfo {
 	return &PodStatusInfo{
 		ResStatus: &ResStatus{
 			ResName:    podName,
-			StatusIcon: NewStatusIcon(PodUnknown, ""),
+			StatusIcon: NewStatusIcon(PodUnknown, "", th),
 		},
 		ContainersInfo: make(map[string]*PodContainerInfo, 0),
 	}
@@ -1630,6 +1679,9 @@ type PodContainerInfo struct {
 	*StatusIcon
 }
 
-func (si *StatusIcon) Layout(gtx layout.Context) layout.Dimensions {
-	return si.icon.Layout(gtx, si.color)
+func (si *StatusIcon) Layout(gtx layout.Context, size unit.Dp) layout.Dimensions {
+	si.button.Size = size
+	return layout.Inset{Top: 0, Bottom: 0, Left: 1, Right: 2}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return si.button.Layout(gtx)
+	})
 }
