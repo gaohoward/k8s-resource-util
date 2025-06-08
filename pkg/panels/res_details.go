@@ -143,7 +143,7 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 							logger.Error("no status for container!", zap.String("name", conLog.name))
 							return layout.Dimensions{}
 						} else {
-							return conLog.status.Layout(gtx, 16)
+							return conLog.status.Layout(gtx, 16, nil)
 						}
 					}),
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -174,9 +174,7 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 						conLog.label.Color = common.COLOR.Blue()
 						dim := conLog.GetDividerWidth(gtx, containerTab)
 						size := dim.Size.X
-						// logger.Info("----size y", zap.Int("y", dim.Size.Y))
-						// logger.Info("gtx ", zap.Int("max", gtx.Constraints.Max.Y), zap.Int("x", gtx.Constraints.Max.X))
-						// logger.Info("gtx ", zap.Int("min", gtx.Constraints.Min.Y), zap.Int("x", gtx.Constraints.Min.X))
+
 						return layout.Inset{Top: 0, Bottom: unit.Dp(16), Left: 0, Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 							return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {

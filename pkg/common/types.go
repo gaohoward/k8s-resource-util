@@ -1573,9 +1573,19 @@ type StatusIcon struct {
 	button     component.TipIconButtonStyle
 }
 
+func (si *StatusIcon) GetStatus() StatusType {
+	return si.Status
+}
+
+func (si *StatusIcon) GetReason() string {
+	return si.Reason
+}
+
 type ResStatusInfo interface {
 	SetStatus(status StatusType, reason string, th *material.Theme)
-	Layout(gtx layout.Context, size unit.Dp) layout.Dimensions
+	GetStatus() StatusType
+	GetReason() string
+	Layout(gtx layout.Context, size unit.Dp, inset *layout.Inset) layout.Dimensions
 }
 
 type ResStatus struct {
@@ -1679,8 +1689,13 @@ type PodContainerInfo struct {
 	*StatusIcon
 }
 
-func (si *StatusIcon) Layout(gtx layout.Context, size unit.Dp) layout.Dimensions {
+func (si *StatusIcon) Layout(gtx layout.Context, size unit.Dp, inset *layout.Inset) layout.Dimensions {
 	si.button.Size = size
+	if inset != nil {
+		return inset.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return si.button.Layout(gtx)
+		})
+	}
 	return layout.Inset{Top: 0, Bottom: 0, Left: 1, Right: 2}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 		return si.button.Layout(gtx)
 	})

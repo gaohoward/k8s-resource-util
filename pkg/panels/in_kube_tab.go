@@ -409,7 +409,7 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						sicon := tab.currentResultItem.GetStatusIcon(th)
 						if sicon != nil {
-							return sicon.Layout(gtx, 20)
+							return sicon.Layout(gtx, 20, nil)
 						}
 						logger.Info("No status icon for resource", zap.String("name", tab.currentResultItem.item.GetName()))
 						return layout.Dimensions{}
@@ -693,13 +693,27 @@ func NewInKubeTab(th *material.Theme, client *common.K8sClient) *InKubeTab {
 								if rowItem.clickable.Clicked(gtx) {
 									if tab.currentResultItem != rowItem {
 										tab.currentResultItem = rowItem
-										//tab.detailPanel.SetText("")
 									}
 								}
 								if tab.currentResultItem == rowItem {
 									rowItem.label0.Font.Weight = font.Bold
 								} else {
 									rowItem.label0.Font.Weight = font.Normal
+								}
+
+								if statusIcon := rowItem.GetStatusIcon(th); statusIcon != nil {
+									newIcon := common.NewStatusIcon(statusIcon.GetStatus(), statusIcon.GetReason(), th)
+
+									return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											return newIcon.Layout(gtx, unit.Dp(14), &layout.Inset{Top: 3, Bottom: 0, Left: 1, Right: 2})
+										}),
+										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+											return material.Clickable(gtx, &rowItem.clickable, func(gtx layout.Context) layout.Dimensions {
+												return rowItem.label0.Layout(gtx)
+											})
+										}),
+									)
 								}
 								return material.Clickable(gtx, &rowItem.clickable, func(gtx layout.Context) layout.Dimensions {
 									return rowItem.label0.Layout(gtx)
