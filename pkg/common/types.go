@@ -414,6 +414,7 @@ func (c *Collection) Load(targetDir string) error {
 				if err != nil {
 					return err
 				}
+
 				config, err := ParseCollectionConfig(data)
 				if err != nil {
 					return err
@@ -426,12 +427,11 @@ func (c *Collection) Load(targetDir string) error {
 				realId := config.Id
 
 				if c.Id != realId {
-					if _, ok := c.holder[c.Id]; ok {
-						delete(c.holder, c.Id)
-					}
+					delete(c.holder, c.Id)
 					c.Id = realId
 					c.holder[realId] = c
 				}
+
 			} else if strings.HasSuffix(name, ".yaml") {
 				instName := NameFromYaml(name)
 				resInstance := InstanceFromYAML(filepath.Join(realDir, name), instName)

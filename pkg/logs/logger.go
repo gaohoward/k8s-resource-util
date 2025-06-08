@@ -27,8 +27,7 @@ func NewAppLogger(name string, sink ...io.Writer) (*zap.Logger, error) {
 	defer loggerLock.Unlock()
 
 	if _, ok := appLoggers[name]; ok {
-		fmt.Errorf("Logger already exists", name)
-		return nil, fmt.Errorf("Logger already exists %v", name)
+		return nil, fmt.Errorf("logger already exists %v", name)
 	}
 
 	cfg := zap.NewProductionEncoderConfig()

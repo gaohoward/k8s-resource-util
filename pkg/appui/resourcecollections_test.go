@@ -60,7 +60,6 @@ func TestCollectionSaveAndLoad(t *testing.T) {
 			Description: "Child Collection1",
 		},
 	})
-	child1ID := child1.GetId()
 
 	res3, err := common.NewInstance(common.STATEFULSET.ToApiVer(), "statefulset1", 0)
 	if err != nil {
@@ -166,8 +165,6 @@ func TestCollectionSaveAndLoad(t *testing.T) {
 		t.Fatalf("Description file for grandChild1 was not created: %v", err)
 	}
 
-	//CopyDir(tempDir, "/home/howard/.k8sutil/Internal")
-
 	//Now load
 	holder = make(map[string]common.INode)
 	repo = NewCollectionRepo("local", nil, nil, &config.CollectionConfig{}, repoDir, holder)
@@ -186,12 +183,10 @@ func TestCollectionSaveAndLoad(t *testing.T) {
 
 	t.Logf("old %v\n", string(old))
 
-	// Write a string to a file
-	testContent := string(old) + "\n This is a test string."
+	// Write a string to a file, this will break the yaml loading
+	invalidTestContent := string(old) + "\n This is a test string."
 
-	newDesc := "Child Collection1" + "\n This is a test string."
-
-	err = os.WriteFile(descFileChild1, []byte(testContent), 0644)
+	err = os.WriteFile(descFileChild1, []byte(invalidTestContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write to file: %v", err)
 	}
@@ -201,20 +196,13 @@ func TestCollectionSaveAndLoad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to read the file: %v", err)
 	}
-	if string(content) != testContent {
-		t.Fatalf("File content mismatch. Expected: %s, Got: %s", testContent, string(content))
+	if string(content) != invalidTestContent {
+		t.Fatalf("File content mismatch. Expected: %s, Got: %s", invalidTestContent, string(content))
 	}
 
-	repo.Reload(repoDir)
-	if newChild1, ok := repo.GetHolder()[child1ID]; ok {
-		collection := newChild1.(*common.Collection)
-		desc := collection.GetConfigContent()
-		t.Logf("Description of child1: %s", desc)
-		if desc != newDesc {
-			t.Fatalf("Description mismatch. Expected: %s, Got: %s", testContent, desc)
-		}
-	} else {
-		t.Fatalf("Failed to find child1: %s", child1ID)
+	err = repo.Reload(repoDir)
+	if err == nil {
+		t.Fatalf("didn't catch the yaml loading error")
 	}
 
 }
