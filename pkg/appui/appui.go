@@ -26,7 +26,6 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"go.uber.org/zap"
-	"k8s.io/client-go/rest"
 )
 
 var logger *zap.Logger
@@ -134,8 +133,6 @@ func (navigator *ResourceNavigator) init(th *material.Theme) {
 
 type AppUI struct {
 	Logger            *zap.Logger
-	resUtil           *common.ResUtil
-	k8sClient         *common.K8sClient
 	theme             *material.Theme
 	Ops               op.Ops
 	resourceNavigator ResourceNavigator
@@ -260,7 +257,7 @@ func (a *AboutPanel) Layout(gtx layout.Context, th *material.Theme, isForInit bo
 		})
 }
 
-func (appUi *AppUI) Init(cfg *rest.Config) []error {
+func (appUi *AppUI) Init() []error {
 
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.0), nil)
 
@@ -268,8 +265,6 @@ func (appUi *AppUI) Init(cfg *rest.Config) []error {
 	appUi.ForceUpdate = false
 	appUi.theme.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
 	appUi.resourceNavigator.init(appUi.theme)
-
-	appUi.k8sClient = common.CreateK8sClient(cfg)
 
 	var err []error
 	appUi.resourceCollections, err = GetResourceCollections(&appUi.resourcePage, appUi.theme)
@@ -279,7 +274,9 @@ func (appUi *AppUI) Init(cfg *rest.Config) []error {
 
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.6), nil)
 
-	appUi.resourcePage.Init(appUi.resUtil, appUi.k8sClient, appUi.RefreshCh, appUi.theme)
+	k8sClient := common.GetK8sClient()
+
+	appUi.resourcePage.Init(k8sClient.GetResUtil(), k8sClient, appUi.RefreshCh, appUi.theme)
 
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.9), nil)
 
@@ -510,16 +507,13 @@ func (appUi *AppUI) isShowAboutDialog() bool {
 	return show
 }
 
-func NewAppUI(restClient *rest.Config, logger *zap.Logger) *AppUI {
+func NewAppUI(logger *zap.Logger) *AppUI {
 
 	common.RegisterContext(common.CONTEXT_APP_INIT_STATE, float32(0.0), true)
 	common.RegisterContext(common.CONTEXT_SHOW_ABOUT, false, true)
 
-	resUtil := common.CreateResUtil(restClient)
-
 	appUI := &AppUI{
 		Logger:       logger,
-		resUtil:      resUtil,
 		theme:        material.NewTheme(),
 		resourcePage: ResourcePage{},
 	}

@@ -3,6 +3,7 @@ package common
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/restmapper"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -41,10 +43,12 @@ type K8sClient struct {
 	dynClient       *dynamic.DynamicClient
 	setupErr        string
 	allRes          *ApiResourceInfo
+	resUtil         *ResUtil
+	clientID        string
 }
 
 func (k *K8sClient) GetClusterName() string {
-	return "Minikube"
+	return k.clientID
 }
 
 func (k *K8sClient) FetchAllApiResources(force bool) *ApiResourceInfo {
@@ -77,7 +81,7 @@ func (k *K8sClient) FetchAllApiResources(force bool) *ApiResourceInfo {
 							Gv:     resList.GroupVersion,
 							ApiRes: &res,
 						}
-						if sch, err := GetResUtil().GetCRDFor(entry); err == nil {
+						if sch, err := k.resUtil.GetCRDFor(entry); err == nil {
 							entry.Schema = sch
 						} else {
 							entry.Schema = err.Error()
@@ -239,9 +243,17 @@ func (k *K8sClient) SetupClients() {
 		} else {
 			k.setupErr = err.Error()
 		}
+		key := k.config.Host + k.config.Username + k.config.CertFile
+		k.clientID = fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
 	} else {
+		k.clientID = ""
 		k.setupErr = "No rest config"
 	}
+	k.resUtil = createResUtil(k.config)
+}
+
+func (k *K8sClient) GetResUtil() *ResUtil {
+	return k.resUtil
 }
 
 func (k *K8sClient) GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error) {
@@ -249,7 +261,7 @@ func (k *K8sClient) GetPodContainers(podRaw *unstructured.Unstructured) ([]strin
 	if k.IsValid() {
 		pod := &corev1.Pod{}
 		if runtime.DefaultUnstructuredConverter == nil {
-			return nil, fmt.Errorf("No converter!")
+			return nil, fmt.Errorf("no converter")
 		}
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(podRaw.Object, &pod)
 		if err != nil {
@@ -276,7 +288,7 @@ func (k *K8sClient) GetPodLog(podRaw *unstructured.Unstructured, container strin
 
 		pod := &corev1.Pod{}
 		if runtime.DefaultUnstructuredConverter == nil {
-			return nil, fmt.Errorf("No converter!")
+			return nil, fmt.Errorf("no converter")
 		}
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(podRaw.Object, &pod)
 		if err != nil {
@@ -308,7 +320,7 @@ func (k *K8sClient) GetPodLog(podRaw *unstructured.Unstructured, container strin
 		// return str
 
 	} else {
-		return nil, fmt.Errorf("not connected.")
+		return nil, fmt.Errorf("not connected")
 	}
 }
 
@@ -316,17 +328,20 @@ func GetK8sClient() *K8sClient {
 	return k8sClient
 }
 
-// note cfg may be nil
-func CreateK8sClient(cfg *rest.Config) *K8sClient {
-	if k8sClient == nil {
-		k8sClient = &K8sClient{
-			config:   cfg,
-			setupErr: "",
-		}
+func InitK8sClient(configPath *string) {
+	config, err := clientcmd.BuildConfigFromFlags("", *configPath)
 
-		k8sClient.SetupClients()
+	if err != nil {
+		logger.Error("Failed to get client", zap.Error(err))
+		config = nil
 	}
-	return k8sClient
+	k8sClient = &K8sClient{
+		config:   config,
+		setupErr: "",
+	}
+
+	k8sClient.SetupClients()
+
 }
 
 func ToApiVer(userInput string) (string, error) {
@@ -365,7 +380,7 @@ func GetResSpec(res *ApiResourceEntry) *ResourceSpec {
 	spec := &ResourceSpec{
 		ApiVer: res.ApiVer,
 	}
-	resUtil := GetResUtil()
+	resUtil := GetK8sClient().GetResUtil()
 	var err error
 	spec.Schema, err = resUtil.GetCRDFor(res)
 	if err != nil {

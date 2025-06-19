@@ -36,6 +36,11 @@ It is based on https://github.com/gioui/gio
   ```
   ./resutil
   ```
+You can add an option flag `kubeconfig` to use a different k8s config. For example
+  ```
+  ./resutil --kubeconfig <kube config file path>
+  ```
+If not specified, the resutil will use $HOME/.kube/config
 
 ## Note
 

@@ -11,7 +11,6 @@ import (
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/config"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 
 	"gioui.org/app"
@@ -77,6 +76,7 @@ func main() {
 	}
 
 	logger.Info("parsing", zap.String("configDir", cfgDir))
+
 	var kubeconfig *string
 	if home := homedir.HomeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -85,15 +85,21 @@ func main() {
 	}
 	flag.Parse()
 
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	common.InitK8sClient(kubeconfig)
 
-	if err != nil {
-		logger.Error("Failed to get client", zap.Error(err))
-		config = nil
+	appUI := appui.NewAppUI(logger)
+
+	logger.Info("initializing ...")
+	//consider using sync.Once
+	errs := appUI.Init()
+	if len(errs) > 0 {
+		logger.Error("failed to init app", zap.Int("total errs", len(errs)))
+		for i := range errs {
+			logger.Error("error initializing app", zap.Error(errs[i]))
+		}
+		os.Exit(1)
 	}
-
-	appUI := appui.NewAppUI(config, logger)
+	logger.Info("initialization done")
 
 	go func() {
 		appWin := common.GetAppWindow()
@@ -106,17 +112,5 @@ func main() {
 		}
 		os.Exit(0)
 	}()
-
-	logger.Info("initializing ...")
-	//consider using sync.Once
-	errs := appUI.Init(config)
-	if len(errs) > 0 {
-		logger.Error("failed to init app", zap.Int("total errs", len(errs)))
-		for i := range errs {
-			logger.Error("error initializing app", zap.Error(errs[i]))
-		}
-		os.Exit(1)
-	}
-	logger.Info("initialization done")
 	app.Main()
 }

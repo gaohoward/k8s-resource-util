@@ -40,23 +40,14 @@ https://github.com/kubernetes/kubectl.git
 // suffer the same issue
 const MAX_TEXT_SIZE = 80000
 
-var resUtil *ResUtil
-
-func GetResUtil() *ResUtil {
-	return resUtil
-}
-
-// config could be nil when not connected
-func CreateResUtil(config *rest.Config) *ResUtil {
-	if resUtil == nil {
-		generator := ktlexplain.NewGenerator()
-		if err := registerBuiltinTemplates(generator); err != nil {
-			logger.Warn("Error registing template", zap.Error(err))
-		}
-		resUtil = &ResUtil{
-			generator: generator,
-			client:    config,
-		}
+func createResUtil(config *rest.Config) *ResUtil {
+	generator := ktlexplain.NewGenerator()
+	if err := registerBuiltinTemplates(generator); err != nil {
+		logger.Warn("Error registing template", zap.Error(err))
+	}
+	resUtil := &ResUtil{
+		generator: generator,
+		client:    config,
 	}
 	return resUtil
 }

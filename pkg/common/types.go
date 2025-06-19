@@ -806,10 +806,19 @@ func GetPersister() DeploymentPersister {
 
 	cfgDir, err := config.GetConfigDir()
 	if err != nil {
-		logger.Warn("Cannot get config dir", zap.Error(err))
+		logger.Info("Cannot get config dir", zap.Error(err))
 		return &DummyPersister{}
 	}
-	path := filepath.Join(cfgDir, "deployments")
+	if !GetK8sClient().IsValid() {
+		logger.Info("Deployment is disabled because no valid cluster available")
+		return &DummyPersister{}
+	}
+
+	clustersDir := filepath.Join(cfgDir, "clusters")
+	basePath := filepath.Join(clustersDir, GetK8sClient().GetClusterName())
+
+	path := filepath.Join(basePath, "deployments")
+
 	if err := os.MkdirAll(path, 0755); err != nil {
 		logger.Warn("Cannot get config dir", zap.Error(err))
 		return &DummyPersister{}
