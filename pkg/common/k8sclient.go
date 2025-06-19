@@ -44,11 +44,15 @@ type K8sClient struct {
 	setupErr        string
 	allRes          *ApiResourceInfo
 	resUtil         *ResUtil
-	clientID        string
+	clusterInfo     *ClusterInfo
 }
 
 func (k *K8sClient) GetClusterName() string {
-	return k.clientID
+	return k.clusterInfo.Id
+}
+
+func (k *K8sClient) GetClusterInfo() *ClusterInfo {
+	return k.clusterInfo
 }
 
 func (k *K8sClient) FetchAllApiResources(force bool) *ApiResourceInfo {
@@ -243,10 +247,17 @@ func (k *K8sClient) SetupClients() {
 		} else {
 			k.setupErr = err.Error()
 		}
+
 		key := k.config.Host + k.config.Username + k.config.CertFile
-		k.clientID = fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
+
+		clientId := fmt.Sprintf("%x", sha256.Sum256([]byte(key)))
+
+		k.clusterInfo = &ClusterInfo{
+			Host: k.config.Host,
+			Id:   clientId,
+		}
 	} else {
-		k.clientID = ""
+		k.clusterInfo = &ClusterInfo{}
 		k.setupErr = "No rest config"
 	}
 	k.resUtil = createResUtil(k.config)

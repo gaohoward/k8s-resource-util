@@ -603,7 +603,7 @@ func (d *DeployDetail) ParseResources() (map[string]*ResourceInstanceAction, err
 				}
 			}
 		} else {
-			err = fmt.Errorf("Invalid node %v\n", d.res.GetName())
+			err = fmt.Errorf("invalid node %v", d.res.GetName())
 		}
 	}
 	return d.AllInstances, err
@@ -816,6 +816,47 @@ func GetPersister() DeploymentPersister {
 
 	clustersDir := filepath.Join(cfgDir, "clusters")
 	basePath := filepath.Join(clustersDir, GetK8sClient().GetClusterName())
+
+	// store cluster index into info.yaml
+	infoFile := filepath.Join(clustersDir, "info.yaml")
+
+	clusterInfo := GetK8sClient().GetClusterInfo()
+
+	infoMap := make(map[string]*ClusterInfo)
+
+	if _, err := os.Stat(infoFile); os.IsNotExist(err) {
+		// info.yaml does not exist
+		infoMap[clusterInfo.Id] = clusterInfo
+		data, err := yaml.Marshal(infoMap)
+		if err != nil {
+			logger.Warn("error writing cluster info", zap.Error(err))
+			return &DummyPersister{}
+		}
+		os.WriteFile(infoFile, data, 0644)
+	} else if err != nil {
+		logger.Warn("Error checking info.yaml", zap.Error(err))
+	} else {
+		//exist
+		if data, err := os.ReadFile(infoFile); err == nil {
+			infos := make(map[string]*ClusterInfo, 0)
+
+			if err := yaml.Unmarshal(data, infos); err != nil {
+				logger.Warn("error unmarshalling cluster info", zap.Error(err))
+				return &DummyPersister{}
+			}
+
+			infos[clusterInfo.Id] = clusterInfo
+
+			newData, err := yaml.Marshal(infos)
+			if err != nil {
+				logger.Warn("error marshalling cluster info", zap.Error(err))
+				return &DummyPersister{}
+			}
+			os.WriteFile(infoFile, newData, 0644)
+		} else {
+			logger.Warn("error reading cluster info", zap.Error(err))
+		}
+	}
 
 	path := filepath.Join(basePath, "deployments")
 
@@ -1588,6 +1629,11 @@ func (si *StatusIcon) GetStatus() StatusType {
 
 func (si *StatusIcon) GetReason() string {
 	return si.Reason
+}
+
+type ClusterInfo struct {
+	Host string
+	Id   string
 }
 
 type ResStatusInfo interface {
