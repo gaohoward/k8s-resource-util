@@ -59,7 +59,7 @@ func (uictx *UIContext) register(key string, defaultValue any, requireRefresh bo
 	uictx.lock.Lock()
 	defer uictx.lock.Unlock()
 	if _, ok := uictx.contextMap[key]; ok {
-		return fmt.Errorf("Context alread registered %v", key)
+		return fmt.Errorf("context alread registered %v", key)
 	}
 	uictx.contextMap[key] = &ContextData{
 		value:          defaultValue,
@@ -91,7 +91,7 @@ func (uictx *UIContext) setValue(key string, value any, extra any) error {
 		}
 		return nil
 	}
-	return fmt.Errorf("No such context %v", key)
+	return fmt.Errorf("no such context %v", key)
 }
 
 // Helpers
@@ -132,7 +132,7 @@ func (uictx *UIContext) flipBool(key string) (bool, error) {
 		}
 		return false, fmt.Errorf("type mismatch %T", data.value)
 	}
-	return false, fmt.Errorf("No such context %v", key)
+	return false, fmt.Errorf("no such context %v", key)
 }
 
 func SetContextData(key string, data any, extra any) {

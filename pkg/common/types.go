@@ -24,7 +24,6 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/types"
-	rtclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type ResourceAction int
@@ -445,9 +444,7 @@ func (c *Collection) Load(targetDir string) error {
 		c.Configuration = *CreateCollectionConfig(c.name, c.Id, c.Configuration.Description)
 		realId := c.Configuration.Id
 		if c.Id != realId {
-			if _, ok := c.holder[c.Id]; ok {
-				delete(c.holder, c.Id)
-			}
+			delete(c.holder, c.Id)
 			c.Id = realId
 			c.holder[realId] = c
 		}
@@ -893,7 +890,6 @@ type ResourceNode struct {
 	Path      string
 	Instance  *ResourceInstance
 	clickable widget.Clickable
-	rtObject  rtclient.Object
 }
 
 func (r *ResourceNode) IsRoot() bool {
@@ -1048,6 +1044,7 @@ func (rb *ResourceBag) RemoveReorder(removedId string) {
 			reachRemoved = true
 		}
 	}
+	rb.ResourceNodes = newNodes
 	rb.owner.Save("", true)
 }
 
@@ -1160,7 +1157,6 @@ type ResourceInstance struct {
 	Order    *int          `yaml:"order,omitempty"`
 	InstName string
 	Label    string
-	object   rtclient.Object
 }
 
 func (ri *ResourceInstance) Clone() *ResourceInstance {

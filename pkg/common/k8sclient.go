@@ -369,7 +369,7 @@ func ToApiVer(userInput string) (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("No such resource %v", userInput)
+	return "", fmt.Errorf("no such resource %v", userInput)
 }
 
 // userInput could be case insensitive names such as pod, STATEFULSET for built-in types (in cached package)
@@ -446,7 +446,7 @@ func NewInstance(apiVer string, name string, order int) (*ResourceInstance, erro
 	}
 
 	logger.Info("No resource found", zap.String("apiv", apiVer))
-	return nil, fmt.Errorf("No such resource %v", apiVer)
+	return nil, fmt.Errorf("no such resource %v", apiVer)
 }
 
 func (k *K8sClient) FetchGVRInstances(g string, v string, r string, ns string) (*unstructured.UnstructuredList, error) {
@@ -462,7 +462,7 @@ func (k *K8sClient) FetchGVRInstances(g string, v string, r string, ns string) (
 		}
 		return instList, nil
 	}
-	return nil, fmt.Errorf("Cluster not connected")
+	return nil, fmt.Errorf("cluster not connected")
 }
 
 func (k *K8sClient) FetchAllNamespaces() ([]string, error) {

@@ -219,28 +219,31 @@ func GetCRDFor(resEntry *ApiResourceEntry, k8sConfig *rest.Config, generator ktl
 
 	gv, exists := v3paths[resourcePath]
 	if !exists {
-		return "", fmt.Errorf("couldn't found path for %s\n", resourcePath)
+		return "", fmt.Errorf("couldn't found path for %s", resourcePath)
 	}
 
 	openAPISchemaBytes, err := gv.Schema(runtime.ContentTypeJSON)
 	if err != nil {
 		logger.Error("error getting schema", zap.Error(err))
-		return "", nil
+		return "", err
 	}
 
 	var parsedV3Schema map[string]any
 	if err := json.Unmarshal(openAPISchemaBytes, &parsedV3Schema); err != nil {
-		return "", fmt.Errorf("Error unmarshaling schema")
+		return "", fmt.Errorf("error unmarshaling schema")
 	}
 
 	gvr, fieldsPath, err := GetGVR(cachedClient, resEntry)
+	if err != nil {
+		return "", err
+	}
 
 	buf := new(bytes.Buffer)
 
 	err = generator.Render("plaintext", parsedV3Schema, *gvr, fieldsPath, true, buf)
 
 	if err != nil {
-		return "", fmt.Errorf("error render %v\n", err)
+		return "", fmt.Errorf("error render %v", err)
 	}
 	fullSpec := buf.String()
 

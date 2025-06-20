@@ -53,7 +53,6 @@ func (cbar *ControlBar) SetActions(actions []component.AppBarAction) {
 func (cbar *ControlBar) init(m *component.ModalLayer, th *material.Theme) {
 	cbar.bar = component.NewAppBar(m)
 	cbar.bar.NavigationIcon = graphics.MenuIcon
-	cbar.bar.Title = "Choose a Resource Type"
 
 	cbar.globalOverflows = []component.OverflowAction{
 		{
@@ -303,8 +302,10 @@ func (appUi *AppUI) layoutPanelArea(gtx layout.Context) layout.Dimensions {
 
 func (appUi *AppUI) setupAppBar(gtx layout.Context, th *material.Theme) *layout.FlexChild {
 
-	if appUi.resourcePage.current != nil {
-		appUi.resourceNavigator.constrolBar.bar.Title = appUi.resourcePage.current.GetLabel()
+	if common.GetK8sClient().IsValid() {
+		appUi.resourceNavigator.constrolBar.bar.Title = common.GetK8sClient().GetClusterInfo().Host
+	} else {
+		appUi.resourceNavigator.constrolBar.bar.Title = "no cluster connected"
 	}
 
 	return appUi.resourceNavigator.setup(gtx, th)
