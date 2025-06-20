@@ -89,18 +89,6 @@ func main() {
 
 	appUI := appui.NewAppUI(logger)
 
-	logger.Info("initializing ...")
-	//consider using sync.Once
-	errs := appUI.Init()
-	if len(errs) > 0 {
-		logger.Error("failed to init app", zap.Int("total errs", len(errs)))
-		for i := range errs {
-			logger.Error("error initializing app", zap.Error(errs[i]))
-		}
-		os.Exit(1)
-	}
-	logger.Info("initialization done")
-
 	go func() {
 		appWin := common.GetAppWindow()
 		//appWin.Option(app.Fullscreen.Option())
@@ -112,5 +100,18 @@ func main() {
 		}
 		os.Exit(0)
 	}()
+
+	//consider using sync.Once
+	logger.Info("initializing ...")
+	errs := appUI.Init()
+	if len(errs) > 0 {
+		logger.Error("failed to init app", zap.Int("total errs", len(errs)))
+		for i := range errs {
+			logger.Error("error initializing app", zap.Error(errs[i]))
+		}
+		os.Exit(1)
+	}
+	logger.Info("initialization done")
+
 	app.Main()
 }
