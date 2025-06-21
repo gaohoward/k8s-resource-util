@@ -242,11 +242,8 @@ func (rp *ResourcePage) Init(util *common.ResUtil, rtclient *common.K8sClient, r
 }
 
 func (rp *ResourcePage) WaitForLoading(rc common.Resource) {
-	//select blocks until at least one of the channels is ready
-	select {
-	case <-rp.ch:
-		rp.refreshCh <- 1
-	}
+	<-rp.ch
+	rp.refreshCh <- 1
 }
 
 func (rp *ResourcePage) isCurrent(ac *ActiveResource) bool {

@@ -73,7 +73,8 @@ type InKubeTab struct {
 	//	detailEditor material.EditorStyle
 	detailPanel *DetailPanel
 
-	widget layout.Widget
+	widget       layout.Widget
+	InRefreshing bool
 }
 
 type DetailPanel struct {
@@ -498,10 +499,27 @@ func NewInKubeTab(th *material.Theme, client *common.K8sClient) *InKubeTab {
 
 	rigid1 := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		if tab.refreshButton.Clicked(gtx) {
-			tab.RefreshNamespaces()
-			tab.RefreshApiResources(true)
+			tab.InRefreshing = true
 			tab.searchField.SetText("")
 			tab.currentCriteria.Reset()
+			ctxData, _ := common.GetContextData(common.CONTEXT_LONG_TASK_LIST)
+			if taskCtx, ok := ctxData.(*common.LongTasksContext); ok {
+				task := taskCtx.AddTask("Refreshing")
+
+				task.Progress = float32(0.0)
+				task.Update("Starting")
+				task.Step = 1.0 / 2
+
+				task.Run = func() {
+					tab.RefreshNamespaces()
+					task.Update("Refreshed namespaces")
+					tab.RefreshApiResources(true)
+					task.Update("Refreshed api resource list")
+					task.Done()
+					tab.InRefreshing = false
+				}
+				task.Start()
+			}
 		}
 		return layout.Inset{Top: 4, Bottom: 0, Left: 0, Right: 4}.Layout(gtx, reloadBtn.Layout)
 	})
@@ -740,6 +758,9 @@ func NewInKubeTab(th *material.Theme, client *common.K8sClient) *InKubeTab {
 
 	tab.widget = func(gtx layout.Context) layout.Dimensions {
 
+		if tab.InRefreshing {
+			return layout.Dimensions{}
+		}
 		if tab.showApiResButton.Pressed() {
 			if tab.showApiResButton.Update(gtx) {
 				common.SetContextBool(CONTEXT_KEY_API_RESOURCE, tab.showApiResButton.Value, nil)

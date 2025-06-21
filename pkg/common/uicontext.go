@@ -21,7 +21,7 @@ func init() {
 	}
 
 	uiContext.register(CONTEXT_LONG_TASK_LIST, &LongTasksContext{
-		queue: make([]*LongTask, 0),
+		queue: []*LongTask{},
 	}, true)
 
 	uiContext.register(CONTEXT_APP_MAIN, nil, true)
@@ -192,7 +192,7 @@ func (ltc *LongTasksContext) RemoveTask(name string) {
 
 	for i, task := range ltc.queue {
 		if task.Name == name {
-			ltc.queue = append(ltc.queue[:i], ltc.queue[i+1:]...)
+			ltc.queue = append((ltc.queue)[:i], (ltc.queue)[i+1:]...)
 			break
 		}
 	}
@@ -209,6 +209,7 @@ func (ltc *LongTasksContext) AddTask(taskName string) *LongTask {
 	}
 
 	ltc.queue = append(ltc.queue, newTask)
+
 	return newTask
 }
 

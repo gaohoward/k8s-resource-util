@@ -22,7 +22,6 @@ import (
 	"gioui.org/op/clip"
 	"gioui.org/text"
 	"gioui.org/unit"
-	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"go.uber.org/zap"
@@ -41,7 +40,6 @@ type AboutAction struct {
 // All setup* funcs are used to layout sub components
 type ControlBar struct {
 	bar             *component.AppBar
-	title           string
 	overflowAbout   *AboutAction
 	globalOverflows []component.OverflowAction
 }
@@ -135,14 +133,13 @@ type AppUI struct {
 	theme             *material.Theme
 	Ops               op.Ops
 	resourceNavigator ResourceNavigator
-	bottomBar         widget.Label
 	resourcePage      ResourcePage
 
-	panel             *panels.AppPanel
-	panelResize       component.Resize
-	deployedResources *common.DeployedResources
+	panel       *panels.AppPanel
+	panelResize component.Resize
 
 	info                string
+	progressBar         material.ProgressBarStyle
 	RefreshCh           chan int
 	ForceUpdate         bool
 	resize1             component.Resize
@@ -286,6 +283,9 @@ func (appUi *AppUI) Init() []error {
 	appUi.info = "app is running."
 	appUi.resize1.Ratio = 0.25
 
+	appUi.progressBar = material.ProgressBar(appUi.theme, 0.0)
+	appUi.progressBar.Height = unit.Dp(6)
+
 	appUi.aboutPanel = &AboutPanel{}
 
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(1.0), nil)
@@ -366,14 +366,15 @@ func (appUi *AppUI) getBottomBarComponents() []layout.FlexChild {
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				//progress bar to the right
 				gtx.Constraints.Max.X = 200
-				progressBar := material.ProgressBar(appUi.theme, firstTask.Progress)
-				progressBar.Height = unit.Dp(6)
-				if progressBar.Progress == 0.0 {
-					progressBar.Color = appUi.theme.ContrastFg
+
+				appUi.progressBar.Progress = firstTask.Progress
+
+				if appUi.progressBar.Progress == 0.0 {
+					appUi.progressBar.Color = appUi.theme.ContrastFg
 				} else {
-					progressBar.Color = common.COLOR.Blue()
+					appUi.progressBar.Color = common.COLOR.Blue()
 				}
-				return progressBar.Layout(gtx)
+				return appUi.progressBar.Layout(gtx)
 			}),
 		)
 	}

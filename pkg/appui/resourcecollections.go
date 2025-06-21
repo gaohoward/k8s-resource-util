@@ -146,18 +146,18 @@ func (adc *AddResourceDialogControl) GetWidget(th *material.Theme) layout.Widget
 func (adc *AddResourceDialogControl) doAddTemplate() error {
 	trimdName := strings.TrimSpace(adc.nameInput.Text())
 	if trimdName == "" {
-		err := fmt.Errorf("Name shouldn't be empty")
+		err := fmt.Errorf("name shouldn't be empty")
 		adc.nameInput.SetError(err.Error())
 		return err
 	}
 	//check name uniqueness
 	node := resourceCollections.FindNode(adc.id)
 	if node == nil {
-		return fmt.Errorf("Cannot find collection %v", adc.id)
+		return fmt.Errorf("cannot find collection %v", adc.id)
 	}
 	if col, ok := node.(*common.Collection); ok {
 		if col.FindDirectResourceByName(trimdName) != nil {
-			err := fmt.Errorf("Resource name %v already exists", trimdName)
+			err := fmt.Errorf("resource name %v already exists", trimdName)
 			return err
 		}
 	}
@@ -166,7 +166,7 @@ func (adc *AddResourceDialogControl) doAddTemplate() error {
 
 	trimdPath := strings.TrimSpace(adc.path)
 	if trimdPath == "" {
-		return fmt.Errorf("Need to select a path")
+		return fmt.Errorf("need to select a path")
 	}
 
 	return resourceCollections.AddNewResourceFromTemplate(adc.id, trimdPath, trimdName, inst)
@@ -175,18 +175,18 @@ func (adc *AddResourceDialogControl) doAddTemplate() error {
 func (adc *AddResourceDialogControl) doAddResource() error {
 	trimdName := strings.TrimSpace(adc.nameInput.Text())
 	if trimdName == "" {
-		err := fmt.Errorf("Name shouldn't be empty")
+		err := fmt.Errorf("name shouldn't be empty")
 		adc.nameInput.SetError(err.Error())
 		return err
 	}
 	//check name uniqueness
 	node := resourceCollections.FindNode(adc.id)
 	if node == nil {
-		return fmt.Errorf("Cannot find collection %v", adc.id)
+		return fmt.Errorf("cannot find collection %v", adc.id)
 	}
 	if col, ok := node.(*common.Collection); ok {
 		if col.FindDirectResourceByName(trimdName) != nil {
-			err := fmt.Errorf("Resource name %v already exists", trimdName)
+			err := fmt.Errorf("resource name %v already exists", trimdName)
 			return err
 		}
 	}
@@ -197,12 +197,12 @@ func (adc *AddResourceDialogControl) doAddResource() error {
 	var apiVer string
 
 	if ok, apiVer = common.IsTypeSupported(trimdType); !ok {
-		return fmt.Errorf("Type is not supported %v", trimdType)
+		return fmt.Errorf("type is not supported %v", trimdType)
 	}
 
 	trimdPath := strings.TrimSpace(adc.path)
 	if trimdPath == "" {
-		return fmt.Errorf("Need to select a path")
+		return fmt.Errorf("need to select a path")
 	}
 	return resourceCollections.AddNewResource(adc.id, trimdPath, trimdName, apiVer)
 }
@@ -211,19 +211,19 @@ func (adc *AddResourceDialogControl) doAddCollection() error {
 
 	trimdPath := strings.TrimSpace(adc.path)
 	if trimdPath == "" {
-		return fmt.Errorf("Need to select a path")
+		return fmt.Errorf("need to select a path")
 	}
 
 	trimdName := strings.TrimSpace(adc.nameInput.Text())
 	if trimdName == "" {
-		err := fmt.Errorf("Name shouldn't be empty")
+		err := fmt.Errorf("name shouldn't be empty")
 		adc.nameInput.SetError(err.Error())
 		return err
 	}
 
 	//check spaces in trimed name
 	if strings.Contains(trimdName, " ") {
-		err := fmt.Errorf("Name shouldn't contain spaces")
+		err := fmt.Errorf("name shouldn't contain spaces")
 		adc.nameInput.SetError(err.Error())
 		return err
 	}
@@ -241,13 +241,13 @@ func (adc *AddResourceDialogControl) doAddCollection() error {
 	// make sure the first col doesn't exist
 	node := resourceCollections.FindNode(adc.id)
 	if node == nil {
-		return fmt.Errorf("Cannot find collection %v", adc.id)
+		return fmt.Errorf("cannot find collection %v", adc.id)
 	}
 
 	if col, ok := node.(*common.Collection); ok {
 		for _, val := range col.GetChildren() {
 			if val.GetName() == effectiveParts[0] {
-				err := fmt.Errorf("Resource name %v already exists", effectiveParts[0])
+				err := fmt.Errorf("resource name %v already exists", effectiveParts[0])
 				return err
 			}
 		}
@@ -268,7 +268,7 @@ func (adc *AddResourceDialogControl) Apply() error {
 	case Reorder:
 		return adc.doReorder()
 	}
-	return fmt.Errorf("Unsupported action %v", adc.action)
+	return fmt.Errorf("unsupported action %v", adc.action)
 }
 
 func (adc *AddResourceDialogControl) doReorder() error {
@@ -1302,7 +1302,7 @@ func (col *ResourceCollections) AddNewResource(id string, newPath string, newNam
 		}
 		return nil
 	} else {
-		return fmt.Errorf("Collection not exists: %v", id)
+		return fmt.Errorf("collection not exists: %v", id)
 	}
 }
 
@@ -1321,7 +1321,7 @@ func (col *ResourceCollections) AddNewResourceFromTemplate(id string, newPath st
 		}
 		return fmt.Errorf("not a container: %v", c)
 	}
-	return fmt.Errorf("Repository not exists: %v", id)
+	return fmt.Errorf("repository not exists: %v", id)
 }
 
 func (col *ResourceCollections) AddNewCollections(pid string, path string, effectiveParts []string) error {
@@ -1356,9 +1356,9 @@ func (col *ResourceCollections) AddNewCollection(containerId string, containerPa
 			col.ResourcePage.AddActiveResource(common.NewResourceCollection(newCol), true)
 			return newCol.Id, newCol.GetPath(), nil
 		}
-		return "", "", fmt.Errorf("Failed to create collection, parent is not a collection! %v", c.GetName())
+		return "", "", fmt.Errorf("failed to create collection, parent is not a collection! %v", c.GetName())
 	} else {
-		return "", "", fmt.Errorf("Repository not exists: %v", containerId)
+		return "", "", fmt.Errorf("repository not exists: %v", containerId)
 	}
 }
 
