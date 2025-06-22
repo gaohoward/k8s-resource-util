@@ -304,6 +304,19 @@ func (s *SearchResultItem) SupportStatus() bool {
 	return s.item.GetKind() == "Pod"
 }
 
+func (s *SearchResultItem) GetSummary() string {
+	if s.item.GetKind() == "Event" {
+		var evnt corev1.Event
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(s.item.Object, &evnt)
+		if err != nil {
+			logger.Error("error convert event", zap.Error(err))
+		} else {
+			return evnt.Message
+		}
+	}
+	return ""
+}
+
 func (s *SearchResultItem) GetStatusIcon(th *material.Theme) common.ResStatusInfo {
 	if s.item.GetKind() == "Pod" && s.statusInfo == nil {
 
@@ -312,9 +325,8 @@ func (s *SearchResultItem) GetStatusIcon(th *material.Theme) common.ResStatusInf
 		err := runtime.DefaultUnstructuredConverter.
 			FromUnstructured(s.item.Object, &pod)
 		if err != nil {
-			logger.Error("error convert pos", zap.Error(err))
+			logger.Error("error convert pod", zap.Error(err))
 		} else {
-
 			podStatusInfo := common.NewPodStatusInfo(pod.GetName(), th)
 
 			for _, con := range pod.Status.InitContainerStatuses {
@@ -426,6 +438,13 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 			div := component.Divider(th)
 			div.Inset.Top = unit.Dp(0)
 			return div.Layout(gtx)
+		}),
+		// Summary should be just one line
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			if sum := tab.currentResultItem.GetSummary(); sum != "" {
+				return material.Label(th, unit.Sp(14), sum).Layout(gtx)
+			}
+			return layout.Dimensions{}
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			resDetails := tab.currentResultItem.GetDetails(gtx, th)
