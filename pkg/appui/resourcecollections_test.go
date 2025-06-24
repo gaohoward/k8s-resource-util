@@ -35,7 +35,8 @@ func TestCollectionSaveAndLoad(t *testing.T) {
 
 	logger.Info("created api file", zap.String("file", apiCacheFile))
 
-	common.InitK8sClient(nil)
+	kubeConfig := ""
+	common.InitK8sClient(&kubeConfig)
 
 	holder := make(map[string]common.INode)
 	// Create a root collection
