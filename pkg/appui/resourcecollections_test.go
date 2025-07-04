@@ -8,6 +8,7 @@ import (
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/config"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"go.uber.org/zap"
 )
 
@@ -35,19 +36,18 @@ func TestCollectionSaveAndLoad(t *testing.T) {
 
 	logger.Info("created api file", zap.String("file", apiCacheFile))
 
-	kubeConfig := ""
-	common.InitK8sClient(&kubeConfig)
+	k8sservice.InitK8sService()
 
 	holder := make(map[string]common.INode)
 	// Create a root collection
 	repo := NewCollectionRepo("local", nil, nil, &config.CollectionConfig{}, repoDir, holder)
 
 	// Add resources to the root collection
-	res1, err := common.NewInstance(common.POD.ToApiVer(), "pod1", 0)
+	res1, err := k8sservice.NewInstance(common.POD.ToApiVer(), "pod1", 0)
 	if err != nil {
 		t.Fatalf("Failed to create resource pod1: %v", err)
 	}
-	res2, err := common.NewInstance(common.SECRET.ToApiVer(), "secret1", 1)
+	res2, err := k8sservice.NewInstance(common.SECRET.ToApiVer(), "secret1", 1)
 	if err != nil {
 		t.Fatalf("Failed to create resource secret1: %v", err)
 	}
@@ -61,11 +61,11 @@ func TestCollectionSaveAndLoad(t *testing.T) {
 		},
 	})
 
-	res3, err := common.NewInstance(common.STATEFULSET.ToApiVer(), "statefulset1", 0)
+	res3, err := k8sservice.NewInstance(common.STATEFULSET.ToApiVer(), "statefulset1", 0)
 	if err != nil {
 		t.Fatalf("Failed to create resource statefulset1: %v", err)
 	}
-	res31, err := common.NewInstance(common.DEPLOYMENT.ToApiVer(), "pod1", 1)
+	res31, err := k8sservice.NewInstance(common.DEPLOYMENT.ToApiVer(), "pod1", 1)
 	if err != nil {
 		t.Fatalf("Failed to create resource pod1: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestCollectionSaveAndLoad(t *testing.T) {
 			Description: "Child Collection2",
 		},
 	})
-	res4, err := common.NewInstance(common.CONFIGMAP.ToApiVer(), "configmap1", 0)
+	res4, err := k8sservice.NewInstance(common.CONFIGMAP.ToApiVer(), "configmap1", 0)
 	if err != nil {
 		t.Fatalf("Failed to create resource configmap1: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestCollectionSaveAndLoad(t *testing.T) {
 			Description: "Grand Child Collection",
 		},
 	})
-	res5, err := common.NewInstance(common.INGRESS.ToApiVer(), "ingress1", 1)
+	res5, err := k8sservice.NewInstance(common.INGRESS.ToApiVer(), "ingress1", 1)
 	if err != nil {
 		t.Fatalf("Failed to create resource ingress1: %v", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"gaohoward.tools/k8s/resutil/pkg/config"
 	"gaohoward.tools/k8s/resutil/pkg/dialogs"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gioui.org/font"
 	"gioui.org/io/key"
 	"gioui.org/layout"
@@ -196,7 +197,7 @@ func (adc *AddResourceDialogControl) doAddResource() error {
 	var ok bool
 	var apiVer string
 
-	if ok, apiVer = common.IsTypeSupported(trimdType); !ok {
+	if ok, apiVer = k8sservice.IsTypeSupported(trimdType); !ok {
 		return fmt.Errorf("type is not supported %v", trimdType)
 	}
 
@@ -733,9 +734,9 @@ func NewAddTemplateDialogControl(th *material.Theme, actionData any) *AddResourc
 func (adc *AddResourceDialogControl) loadMenus(th *material.Theme) {
 	if adc.action == AddResource {
 
-		k8sClient := common.GetK8sClient()
+		k8sService := k8sservice.GetK8sService()
 
-		apiResources := k8sClient.FetchAllApiResources(false)
+		apiResources := k8sService.FetchAllApiResources(false)
 
 		apiResourceMenuItems := make([]func(gtx layout.Context) layout.Dimensions, 0)
 
@@ -1289,7 +1290,7 @@ func (col *ResourceCollections) AddNewResource(id string, newPath string, newNam
 	if c, ok := col.nodeMap[id]; ok {
 		if container, ok := c.(*common.Collection); ok {
 
-			instance, err := common.NewInstance(newApiVer, newName, len(container.GetResourceBag().ResourceNodes))
+			instance, err := k8sservice.NewInstance(newApiVer, newName, len(container.GetResourceBag().ResourceNodes))
 			if err != nil {
 				return err
 			}

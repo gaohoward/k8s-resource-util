@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+
+option go_package = "/k8sservice";
+
+service GrpcK8sService {
+  // rpc Greeting(GreetingServiceRequest) returns (GreetingServiceReply) {}
+  // rpc ListFeatures(Rectangle) returns (stream Feature) {}
+
+  rpc IsValid(google.protobuf.Empty) returns (google.protobuf.BoolValue) {}
+
+	// DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, error)
+  rpc DeployResource(DeployResourceRequest) returns (DeployResourceReply) {}
+
+	// GetClusterInfo() *common.ClusterInfo
+  rpc GetClusterInfo(google.protobuf.Empty) returns (ClusterInfoReply) {}
+
+	// FetchAllApiResources(force bool) *common.ApiResourceInfo
+  rpc FetchAllApiResources(google.protobuf.BoolValue) returns (ApiResourceInfoReply) {}
+
+	// FetchGVRInstances(g string, v string, r string, ns string) (*unstructured.UnstructuredList, error)
+  rpc FetchGVRInstances(FetchGvrRequest) returns (GvrReply) {}
+
+	// FetchAllNamespaces() ([]string, error)
+  rpc FetchAllNamespaces(google.protobuf.Empty) returns (AllNamespacesReply) {}
+
+	//GetPodLog(podRaw *unstructured.Unstructured, container string) (io.ReadCloser, error)
+  rpc GetPodLog(PodLogRequest) returns (stream google.protobuf.StringValue) {}
+
+	// GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error)
+  rpc GetPodContainers(google.protobuf.StringValue) returns (GetPodContainersReply) {}
+
+	// GetClusterName() string
+  rpc GetClusterName(google.protobuf.Empty) returns (google.protobuf.StringValue) {}
+
+  // GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
+  rpc GetCRDFor(ApiResourceEntry) returns (CrdReply) {}
+}
+
+message CrdReply {
+  string crd = 1;
+  string error = 2;
+}
+
+message GetPodContainersReply {
+  repeated string containers = 1;
+  string error = 2;
+}
+
+message PodLogRequest {
+  string pod_raw_json = 1;
+  string container = 2;
+}
+
+message AllNamespacesReply {
+  repeated string namespaces = 1;
+  string error = 2;
+}
+
+message GvrReply {
+  // *unstructured.UnstructuredList json
+  string unstructured_list_json = 1;
+  string error = 2;
+}
+
+message FetchGvrRequest {
+  string g = 1;
+  string v = 2;
+  string r = 3;
+  string ns = 4;
+}
+
+// v1.APIResourceList json string
+message ApiResourceList {
+  string api_resource_list_json = 1;
+}
+
+message ApiResourceEntry {
+  string api_ver = 1;
+  string gv = 2;
+  // v1.APIResource
+  string api_resource_json = 3;
+  string schema = 4;
+}
+
+message ApiResourceInfoReply {
+  bool cached = 1;
+  repeated string api_resource_list_json = 2;
+  map<string, string> res_map = 3;
+}
+
+message ClusterInfoReply {
+  string host = 1;
+  string id = 2;
+}
+
+message DeployResourceRequest {
+  string id = 1;
+  ResourceSpec spec = 2;
+  string cr = 3;
+  int32 order = 4;
+  int32 action = 5;
+  string default_ns = 6;
+  string inst_name = 7;
+  string label = 8;
+  string target_ns = 9;
+}
+
+message ResourceSpec {
+  string api_ver = 1;
+  string schema = 2;
+  bool loaded = 3;
+}
+
+message DeployResourceReply {
+    string name = 1;
+    string namespace = 2;
+    string err = 3;
+}

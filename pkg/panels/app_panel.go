@@ -2,6 +2,7 @@ package panels
 
 import (
 	"gaohoward.tools/k8s/resutil/pkg/common"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/unit"
@@ -32,7 +33,7 @@ func (p *AppPanel) GetWidget() layout.Widget {
 
 // each time it is called a new panel is created
 // so far it should be only called once.
-func GetAppPanel(th *material.Theme, dr *common.DeployedResources, k8sClient *common.K8sClient, resMgr common.ResourceManager) *AppPanel {
+func GetAppPanel(th *material.Theme, dr *k8sservice.DeployedResources, k8sClient k8sservice.K8sService, resMgr common.ResourceManager) *AppPanel {
 	panel := AppPanel{}
 
 	depTab := NewDeploymentTab(th, dr, k8sClient, resMgr)

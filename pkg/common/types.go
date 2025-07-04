@@ -3,14 +3,12 @@ package common
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"image/color"
 	"log"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
 	"gaohoward.tools/k8s/resutil/pkg/config"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
@@ -23,7 +21,6 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 type ResourceAction int
@@ -35,100 +32,6 @@ const (
 )
 
 type BuiltinKind string
-
-type DeployDetail struct {
-	// when loaded from persister
-	// if the node cannot be found and restored
-	// from the repository's map
-	// it means the original resource has been
-	// removed by the user, i.e. it became an orphaned
-	// deployment
-	orphaned bool
-	// res may either be a Collection or a ResourceNode
-	// in case of collection, the Cr is meaningless
-	// it is used to store the collections's desc
-	// the Namespace is also ignored. The Kind is
-	// "Collection"
-	res INode
-	// need a CR copy to keep the original
-	// as the res node may subject to user modification
-	// after deployed
-	OriginalCrs  map[string]*CrInstance             `yaml:"originalcrs,omitempty"`
-	AllInstances map[string]*ResourceInstanceAction `yaml:"allinstances,omitempty"`
-	// The Id is singled out for persistence.
-	// We dont persist the whole INode
-	Id string `yaml:"id,omitempty"`
-	// those fields are for convenience purpose
-	Name      string `yaml:"name,omitempty"`
-	Namespace string `yaml:"namespace,omitempty"`
-	ApiVer    string `yaml:"apiVer,omitempty"`
-
-	Status      DeployState `yaml:"status,omitempty"`
-	Creation    string      `yaml:"creation,omitempty"`
-	checkStatus widget.Bool
-	btn         widget.Clickable
-}
-
-func (d *DeployDetail) GetAllDeployNamespaces() string {
-	var builder strings.Builder
-	for _, ns := range d.OriginalCrs {
-		builder.WriteString(ns.FinalNs)
-		builder.WriteString(" ")
-	}
-	return strings.TrimSpace(builder.String())
-}
-
-func (d *DeployDetail) SetFinalNs(finalNs map[string]types.NamespacedName) {
-	for id, ns := range finalNs {
-		if inst, ok := d.OriginalCrs[id]; ok {
-			inst.FinalNs = ns.Namespace
-		}
-	}
-}
-
-func (d *DeployDetail) SetOrphaned() {
-	d.orphaned = true
-}
-
-// called after being loaded.
-// it tries to restore the res from the repository
-func (d *DeployDetail) RestoreNode(n INode) {
-	d.res = n
-}
-
-func (d *DeployDetail) GetClickable() *widget.Clickable {
-	return &d.btn
-}
-
-func (d *DeployDetail) GetCheckStatus() *widget.Bool {
-	return &d.checkStatus
-}
-
-func (d *DeployDetail) Merge(newDeploy *DeployDetail) error {
-	resActions, err := newDeploy.ParseResources()
-	if err != nil {
-		return err
-	}
-	for id, existingAct := range d.AllInstances {
-		if newAct, ok := resActions[id]; ok {
-			oldCr := d.OriginalCrs[id]
-			newCr := newDeploy.OriginalCrs[id]
-			if oldCr.Same(newCr) {
-				//don't do any action as the resource is not changed
-				delete(resActions, id)
-			} else {
-				newAct.SetAction(Update)
-			}
-		} else {
-			//delete the resource
-			existingAct.SetAction(Delete)
-			resActions[id] = existingAct
-		}
-	}
-	//now swap
-	d.AllInstances = resActions
-	return nil
-}
 
 type INode interface {
 	IsRoot() bool
@@ -549,324 +452,27 @@ type ResourceInstanceAction struct {
 	Instance *ResourceInstance `yaml:"instance,omitempty"`
 	//Note the action is based on the same kind of resources
 	//User shouldn't change the apiVersion/Kind once resource is created
-	action    ResourceAction
-	defaultNs string
+	Action    ResourceAction
+	DefaultNs string
 }
 
 func (r *ResourceInstanceAction) GetDefaultNamespace() string {
-	if r.defaultNs != "" {
-		return r.defaultNs
+	if r.DefaultNs != "" {
+		return r.DefaultNs
 	}
 	return config.DEFAULT_NAMESPACE
 }
 
 func (r *ResourceInstanceAction) SetAction(action ResourceAction) {
-	r.action = action
+	r.Action = action
 }
 
 func (r *ResourceInstanceAction) GetAction() ResourceAction {
-	return r.action
+	return r.Action
 }
 
 func (r *ResourceInstanceAction) GetName() string {
 	return r.Instance.GetName()
-}
-
-func (d *DeployDetail) ParseResources() (map[string]*ResourceInstanceAction, error) {
-	var err error = nil
-	if len(d.AllInstances) > 0 {
-		newDetail := NewDeployDetail(d.res)
-		d.Merge(newDetail)
-	} else {
-		d.AllInstances = make(map[string]*ResourceInstanceAction)
-
-		if resNode, ok := d.res.(*ResourceNode); ok {
-			d.OriginalCrs[d.Id] = NewCrInstance(resNode.Instance.GetCR())
-			d.ApiVer = resNode.Instance.GetSpecApiVer()
-			d.AllInstances[resNode.GetId()] = &ResourceInstanceAction{
-				Instance:  resNode.Instance,
-				action:    Create,
-				defaultNs: resNode.GetDefaultNamespace(),
-			}
-		} else if col, ok := d.res.(*Collection); ok {
-			d.ApiVer = COLLECTION.ToApiVer()
-			allres := col.GetAllResourceInstances()
-			for _, r := range allres {
-				d.OriginalCrs[r.GetId()] = NewCrInstance(r.GetCR())
-				d.AllInstances[r.GetId()] = &ResourceInstanceAction{
-					Instance:  r,
-					action:    Create,
-					defaultNs: col.GetDefaultNamespace(),
-				}
-			}
-		} else {
-			err = fmt.Errorf("invalid node %v", d.res.GetName())
-		}
-	}
-	return d.AllInstances, err
-}
-
-func NewDeployDetail(resNode INode) *DeployDetail {
-
-	dd := &DeployDetail{
-		res:         resNode,
-		Id:          resNode.GetId(),
-		OriginalCrs: make(map[string]*CrInstance),
-		Name:        resNode.GetName(),
-		Status:      StateNew,
-		Creation:    time.Now().Format(time.RFC3339),
-	}
-	if ownerCol := resNode.GetOwnerCollection(); ownerCol != nil {
-		dd.Namespace = ownerCol.GetDefaultNamespace()
-	}
-	dd.Status = StateInDeploy
-	return dd
-}
-
-type DeploymentPersister interface {
-	Add(d *DeployDetail) error
-	Update() error
-	Remove(d *DeployDetail) error
-	Load() ([]*DeployDetail, error)
-}
-
-type FileDeploymentPersister struct {
-	filePath string
-	cache    []*DeployDetail
-}
-
-func (fdp *FileDeploymentPersister) persist() error {
-	data, err := yaml.Marshal(fdp.cache)
-	if err != nil {
-		return fmt.Errorf("failed to marshal cache to YAML: %w", err)
-	}
-
-	err = os.WriteFile(fdp.filePath, data, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write cache to file: %w", err)
-	}
-
-	return nil
-}
-
-func (fdp *FileDeploymentPersister) Add(d *DeployDetail) error {
-	fdp.cache = append(fdp.cache, d)
-	return fdp.persist()
-}
-
-// called when some DeployDetail has been changed (like state)
-func (fdp *FileDeploymentPersister) Update() error {
-	return fdp.persist()
-}
-
-func (fdp *FileDeploymentPersister) Remove(d *DeployDetail) error {
-	for i, detail := range fdp.cache {
-		if detail.Id == d.Id {
-			fdp.cache = append(fdp.cache[:i], fdp.cache[i+1:]...)
-			break
-		}
-	}
-	return fdp.persist()
-}
-
-func (fdp *FileDeploymentPersister) Load() ([]*DeployDetail, error) {
-
-	data, err := os.ReadFile(fdp.filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-
-	var details []*DeployDetail
-	err = yaml.Unmarshal(data, &details)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
-	}
-
-	fdp.cache = details
-	return fdp.cache, nil
-}
-
-type DeployedResources struct {
-	resIds    map[string]*DeployDetail
-	list      []*DeployDetail
-	persister DeploymentPersister
-}
-
-func (d *DeployedResources) GetPersister() DeploymentPersister {
-	return d.persister
-}
-
-func (d *DeployedResources) GetSelectedDeployments() []*DeployDetail {
-	deps := make([]*DeployDetail, 0)
-	for _, itm := range d.list {
-		if itm.checkStatus.Value {
-			deps = append(deps, itm)
-		}
-	}
-	return deps
-}
-
-func (d *DeployedResources) AnySelected() bool {
-	for _, itm := range d.list {
-		if itm.checkStatus.Value {
-			return true
-		}
-	}
-	return false
-}
-
-func (d *DeployedResources) Get(index int) *DeployDetail {
-	return d.list[index]
-}
-
-func (d *DeployedResources) Size() int {
-	return len(d.resIds)
-}
-
-func (d *DeployedResources) LockAndAdd(resNode INode) (map[string]*ResourceInstanceAction, error) {
-	dd, exists := d.resIds[resNode.GetId()]
-	if !exists {
-		dd = NewDeployDetail(resNode)
-	}
-
-	actions, err := dd.ParseResources()
-
-	// when an empty colleciton is deployed, no actions will be performed
-	// and no need to add to the deployedResources
-	if len(actions) > 0 && !exists {
-		d.AddDetail(dd, true)
-	}
-
-	return actions, err
-}
-
-func (d *DeployedResources) AddDetail(dd *DeployDetail, persist bool) {
-	d.resIds[dd.Id] = dd
-	d.list = append(d.list, dd)
-	if persist {
-		d.persister.Add(dd)
-	}
-}
-
-// called when deploy failed or undeploy
-func (d *DeployedResources) Remove(resId string) {
-	delete(d.resIds, resId)
-	for i, detail := range d.list {
-		if detail.Id == resId {
-			d.persister.Remove(detail)
-			//d.list = append(d.list[:i], d.list[i+1:]...)
-			d.list = slices.Delete(d.list, i, i+1)
-			break
-		}
-	}
-}
-
-func (d *DeployedResources) Deployed(resId string, finalNs map[string]types.NamespacedName) {
-	d.resIds[resId].Status = StateDeployed
-	d.resIds[resId].Namespace = MapToKeysString(finalNs)
-	d.resIds[resId].SetFinalNs(finalNs)
-	d.persister.Update()
-}
-
-func NewDeployedResources() *DeployedResources {
-	dr := &DeployedResources{
-		resIds: make(map[string]*DeployDetail),
-	}
-	dr.persister = GetPersister()
-	return dr
-}
-
-type DummyPersister struct {
-}
-
-// Load implements DeploymentPersister.
-func (d *DummyPersister) Load() ([]*DeployDetail, error) {
-	return nil, nil
-}
-
-// Remove implements DeploymentPersister.
-func (*DummyPersister) Remove(d *DeployDetail) error {
-	return nil
-}
-
-// Save implements DeploymentPersister.
-func (*DummyPersister) Add(d *DeployDetail) error {
-	return nil
-}
-
-// Update implements DeploymentPersister.
-func (*DummyPersister) Update() error {
-	return nil
-}
-
-func GetPersister() DeploymentPersister {
-
-	cfgDir, err := config.GetConfigDir()
-	if err != nil {
-		logger.Info("Cannot get config dir", zap.Error(err))
-		return &DummyPersister{}
-	}
-	if !GetK8sClient().IsValid() {
-		logger.Info("Deployment is disabled because no valid cluster available")
-		return &DummyPersister{}
-	}
-
-	clustersDir := filepath.Join(cfgDir, "clusters")
-	basePath := filepath.Join(clustersDir, GetK8sClient().GetClusterName())
-
-	// store cluster index into info.yaml
-	infoFile := filepath.Join(clustersDir, "info.yaml")
-
-	clusterInfo := GetK8sClient().GetClusterInfo()
-
-	infoMap := make(map[string]*ClusterInfo)
-
-	if _, err := os.Stat(infoFile); os.IsNotExist(err) {
-		// info.yaml does not exist
-		infoMap[clusterInfo.Id] = clusterInfo
-		data, err := yaml.Marshal(infoMap)
-		if err != nil {
-			logger.Warn("error writing cluster info", zap.Error(err))
-			return &DummyPersister{}
-		}
-		os.WriteFile(infoFile, data, 0644)
-	} else if err != nil {
-		logger.Warn("Error checking info.yaml", zap.Error(err))
-	} else {
-		//exist
-		if data, err := os.ReadFile(infoFile); err == nil {
-			infos := make(map[string]*ClusterInfo, 0)
-
-			if err := yaml.Unmarshal(data, infos); err != nil {
-				logger.Warn("error unmarshalling cluster info", zap.Error(err))
-				return &DummyPersister{}
-			}
-
-			infos[clusterInfo.Id] = clusterInfo
-
-			newData, err := yaml.Marshal(infos)
-			if err != nil {
-				logger.Warn("error marshalling cluster info", zap.Error(err))
-				return &DummyPersister{}
-			}
-			os.WriteFile(infoFile, newData, 0644)
-		} else {
-			logger.Warn("error reading cluster info", zap.Error(err))
-		}
-	}
-
-	path := filepath.Join(basePath, "deployments")
-
-	if err := os.MkdirAll(path, 0755); err != nil {
-		logger.Warn("Cannot get config dir", zap.Error(err))
-		return &DummyPersister{}
-	}
-	fpath := filepath.Join(path, "deployments.yaml")
-	persister := &FileDeploymentPersister{
-		filePath: fpath,
-		cache:    make([]*DeployDetail, 0),
-	}
-	return persister
 }
 
 type Resource interface {
@@ -1165,7 +771,7 @@ func (ri *ResourceInstance) Clone() *ResourceInstance {
 		Spec: &ResourceSpec{
 			ApiVer: ri.Spec.ApiVer,
 			Schema: ri.Spec.Schema,
-			loaded: ri.Spec.loaded,
+			Loaded: ri.Spec.Loaded,
 		},
 		Cr:    ri.Cr,
 		Order: ri.Order,
@@ -1209,8 +815,8 @@ func (ri *ResourceInstance) GetId() string {
 }
 
 func (ri *ResourceInstance) IsSpecLoaded() bool {
-	if ri.Spec.loaded != nil {
-		return *ri.Spec.loaded
+	if ri.Spec.Loaded != nil {
+		return *ri.Spec.Loaded
 	}
 	return false
 }
@@ -1224,7 +830,7 @@ func (ri *ResourceInstance) SetSpecSchema(crd string) {
 }
 
 func (ri *ResourceInstance) SetSpecLoaded(loaded bool) {
-	ri.Spec.loaded = &loaded
+	ri.Spec.Loaded = &loaded
 }
 
 func (ri *ResourceInstance) GetCR() string {
@@ -1247,7 +853,7 @@ type ResourceSpec struct {
 	// e.g. v1/pods
 	ApiVer string `yaml:"apiVer,omitempty"`
 	Schema string
-	loaded *bool
+	Loaded *bool
 }
 
 func (rs *ResourceSpec) GetSchema() string {

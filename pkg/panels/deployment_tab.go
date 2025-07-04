@@ -5,6 +5,7 @@ import (
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/text"
@@ -23,8 +24,8 @@ type DeploymentTab struct {
 	buttons  []layout.FlexChild
 	widget   layout.Widget
 	grid     component.GridState
-	deployed *common.DeployedResources
-	client   *common.K8sClient
+	deployed *k8sservice.DeployedResources
+	client   k8sservice.K8sService
 	resMgr   common.ResourceManager
 }
 
@@ -63,7 +64,7 @@ func (d *DeploymentTab) GetWidget() layout.Widget {
 	return d.widget
 }
 
-func NewDeploymentTab(th *material.Theme, dr *common.DeployedResources, k8sClient *common.K8sClient, resManager common.ResourceManager) *DeploymentTab {
+func NewDeploymentTab(th *material.Theme, dr *k8sservice.DeployedResources, k8sClient k8sservice.K8sService, resManager common.ResourceManager) *DeploymentTab {
 	tab := &DeploymentTab{
 		buttons:            make([]layout.FlexChild, 0),
 		deployed:           dr,

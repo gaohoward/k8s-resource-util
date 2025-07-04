@@ -7,6 +7,7 @@ import (
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
 	"gioui.org/font"
 	"gioui.org/layout"
@@ -33,7 +34,7 @@ type InKubeTab struct {
 	title        string
 	tabClickable widget.Clickable
 
-	client   *common.K8sClient
+	client   k8sservice.K8sService
 	inLogger *zap.Logger
 
 	buttons []layout.FlexChild
@@ -479,7 +480,7 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 	)
 }
 
-func NewInKubeTab(th *material.Theme, client *common.K8sClient) *InKubeTab {
+func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
 
 	common.RegisterContext(CONTEXT_KEY_NAMESPACE, false, true)
 	common.RegisterContext(CONTEXT_KEY_API_RESOURCE, false, true)

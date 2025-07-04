@@ -9,6 +9,7 @@ import (
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/dialogs"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
 	"gaohoward.tools/k8s/resutil/pkg/panels"
 	"gioui.org/f32"
@@ -270,9 +271,9 @@ func (appUi *AppUI) Init() []error {
 
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.6), nil)
 
-	k8sClient := common.GetK8sClient()
+	k8sClient := k8sservice.GetK8sService()
 
-	appUi.resourcePage.Init(k8sClient.GetResUtil(), k8sClient, appUi.RefreshCh, appUi.theme)
+	appUi.resourcePage.Init(k8sClient, appUi.RefreshCh, appUi.theme)
 
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.9), nil)
 
@@ -302,8 +303,8 @@ func (appUi *AppUI) layoutPanelArea(gtx layout.Context) layout.Dimensions {
 
 func (appUi *AppUI) setupAppBar(gtx layout.Context, th *material.Theme) *layout.FlexChild {
 
-	if common.GetK8sClient().IsValid() {
-		appUi.resourceNavigator.constrolBar.bar.Title = common.GetK8sClient().GetClusterInfo().Host
+	if k8sservice.GetK8sService().IsValid() {
+		appUi.resourceNavigator.constrolBar.bar.Title = k8sservice.GetK8sService().GetClusterInfo().Host
 	} else {
 		appUi.resourceNavigator.constrolBar.bar.Title = "no cluster connected"
 	}

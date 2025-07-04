@@ -5,12 +5,15 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gaohoward.tools/k8s/resutil/pkg/appui"
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/config"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
+	"gaohoward.tools/k8s/resutil/pkg/options"
 	"k8s.io/client-go/util/homedir"
 
 	"gioui.org/app"
@@ -66,8 +69,42 @@ func run(window *app.Window, appUi *appui.AppUI) error {
 	}
 }
 
+func runAgent() {
+	k8sservice.Run()
+}
+
+// Options
+// --kubeconfig <kubecfg local dir> | agent=host:port
+// --mode <agent|gui> default gui
+// if mode is agent, --kubeconfig must be a local kubeconfig
 func main() {
 	defer logger.Sync()
+
+	var kubeconfig *string
+	if home := homedir.HomeDir(); home != "" {
+		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+	} else {
+		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	var mode *string
+	mode = flag.String("mode", "gui", "running mode")
+
+	flag.Parse()
+
+	options.Options.Mode = *mode
+	options.Options.Kubeconfig = *kubeconfig
+
+	k8sservice.InitK8sService()
+
+	if *mode == "agent" {
+		if strings.HasPrefix(*kubeconfig, "agent=") {
+			logger.Info("agent mode doesn't support remote k8s client")
+			return
+		}
+		logger.Info("starting local agent...")
+		runAgent()
+		return
+	}
 
 	cfgDir, err := config.GetConfigDir()
 	if err != nil {
@@ -76,16 +113,6 @@ func main() {
 	}
 
 	logger.Info("parsing", zap.String("configDir", cfgDir))
-
-	var kubeconfig *string
-	if home := homedir.HomeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-	flag.Parse()
-
-	common.InitK8sClient(kubeconfig)
 
 	appUI := appui.NewAppUI(logger)
 

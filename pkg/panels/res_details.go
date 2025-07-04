@@ -8,6 +8,7 @@ import (
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -263,7 +264,7 @@ func (cl *ContainerLog) LoadLog(reload bool) {
 			cl.logReadTask.Progress = 0.1
 			cl.logReadTask.Step = 0.01
 			cl.logReadTask.Run = func() {
-				client := common.GetK8sClient()
+				client := k8sservice.GetK8sService()
 				ioReader, err := client.GetPodLog(cl.detail.item, cl.name)
 				if err != nil {
 					msg := err.Error()
@@ -277,8 +278,10 @@ func (cl *ContainerLog) LoadLog(reload bool) {
 					//dont let it reach 100% until done
 					cl.logReadTask.Step = 0.0001
 				}
-				bts := make([]byte, 2048)
+
 				tot := 0
+				bts := make([]byte, 2048)
+
 				for {
 					n, err := ioReader.Read(bts)
 					if err != nil {
@@ -395,7 +398,7 @@ func NewReloadLogAction(th *material.Theme, logDetail *PodLogDetail) *ReloadLogA
 }
 
 func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) {
-	client := common.GetK8sClient()
+	client := k8sservice.GetK8sService()
 	cons, err := client.GetPodContainers(pd.item)
 	if err != nil {
 		logger.Warn("Failed to get pod containers", zap.Error(err))

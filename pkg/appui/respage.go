@@ -9,6 +9,7 @@ import (
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
 	"gaohoward.tools/k8s/resutil/pkg/panels"
 	"gioui.org/font"
@@ -139,7 +140,6 @@ type ResourcePage struct {
 	crPanel          widget.Editor
 	bothPanel        component.Resize
 	crdEditor        *common.ReadOnlyEditor
-	resUtil          *common.ResUtil
 	loadErr          error
 	ch               chan string
 	refreshCh        chan int
@@ -153,9 +153,9 @@ type ResourcePage struct {
 	SaveBtnTooltip component.Tooltip
 	SaveBtnTipArea component.TipArea
 
-	k8sClient         *common.K8sClient
+	k8sClient         k8sservice.K8sService
 	appPanel          *panels.AppPanel
-	deployedResources *common.DeployedResources
+	deployedResources *k8sservice.DeployedResources
 	tabsList          layout.List
 	showSchema        widget.Bool
 }
@@ -213,8 +213,7 @@ func (rp *ResourcePage) UpdateActiveContents(resIds []string, updateHolder map[s
 	}
 }
 
-func (rp *ResourcePage) Init(util *common.ResUtil, rtclient *common.K8sClient, refreshCh chan int, th *material.Theme) {
-	rp.resUtil = util
+func (rp *ResourcePage) Init(rtclient k8sservice.K8sService, refreshCh chan int, th *material.Theme) {
 	rp.current = nil
 	rp.activeResources = NewActiveResourceSet()
 
@@ -236,7 +235,7 @@ func (rp *ResourcePage) Init(util *common.ResUtil, rtclient *common.K8sClient, r
 
 	rp.k8sClient = rtclient
 
-	rp.deployedResources = common.NewDeployedResources()
+	rp.deployedResources = k8sservice.NewDeployedResources()
 
 	rp.appPanel = panels.GetAppPanel(th, rp.deployedResources, rtclient, rp.resourceManager)
 }
@@ -266,7 +265,7 @@ func (rp *ResourcePage) loadResource(rc common.Resource) {
 
 		if _, ok := rc.(*common.ResourceInstance); ok {
 			apiVer := rc.GetSpecApiVer()
-			allRes := common.GetK8sClient().FetchAllApiResources(false)
+			allRes := k8sservice.GetK8sService().FetchAllApiResources(false)
 			schemaFound := false
 			if allRes != nil {
 				entry := allRes.FindApiResource(apiVer)

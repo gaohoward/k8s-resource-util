@@ -1,4 +1,4 @@
-package common
+package k8sservice
 
 import (
 	"os"
@@ -12,7 +12,7 @@ func TestFileDeploymentPersister(t *testing.T) {
 	defer os.Remove(tempFile)
 
 	t.Run("Add Deployment", func(t *testing.T) {
-		persister := &FileDeploymentPersister{filePath: tempFile}
+		persister := &FileDeploymentPersister{FilePath: tempFile}
 		deployment := &DeployDetail{
 			Id:   "test-id",
 			Name: "test-deployment",
@@ -40,7 +40,7 @@ func TestFileDeploymentPersister(t *testing.T) {
 	})
 
 	t.Run("Update Deployment", func(t *testing.T) {
-		persister := &FileDeploymentPersister{filePath: tempFile}
+		persister := &FileDeploymentPersister{FilePath: tempFile}
 		deployment := &DeployDetail{
 			Id:   "test-id",
 			Name: "updated-deployment",
@@ -69,7 +69,7 @@ func TestFileDeploymentPersister(t *testing.T) {
 	})
 
 	t.Run("Remove Deployment", func(t *testing.T) {
-		persister := &FileDeploymentPersister{filePath: tempFile}
+		persister := &FileDeploymentPersister{FilePath: tempFile}
 		deployment := &DeployDetail{
 			Id:   "test-id",
 			Name: "test-deployment",
@@ -98,7 +98,7 @@ func TestFileDeploymentPersister(t *testing.T) {
 	})
 
 	t.Run("Load Deployments", func(t *testing.T) {
-		persister := &FileDeploymentPersister{filePath: tempFile}
+		persister := &FileDeploymentPersister{FilePath: tempFile}
 		deployment := &DeployDetail{
 			Id:   "test-id",
 			Name: "test-deployment",

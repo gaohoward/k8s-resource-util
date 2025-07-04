@@ -5,6 +5,7 @@ import (
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
 	"gioui.org/font"
 	"gioui.org/layout"
@@ -98,7 +99,7 @@ type ApiResourcesTab struct {
 	showSchema   widget.Bool
 	resList      widget.List
 	buttons      []layout.FlexChild
-	client       *common.K8sClient
+	client       k8sservice.K8sService
 	widget       layout.Widget
 	allApis      []*ApiResourceGroup
 	resize       component.Resize
@@ -214,7 +215,7 @@ func (t *ApiResourcesTab) populateTableContents(resInfo *common.ApiResourceInfo,
 	}
 }
 
-func NewApiResourcesTab(th *material.Theme, client *common.K8sClient) *ApiResourcesTab {
+func NewApiResourcesTab(th *material.Theme, client k8sservice.K8sService) *ApiResourcesTab {
 
 	tab := &ApiResourcesTab{
 		title:   "api-resources",
