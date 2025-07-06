@@ -158,7 +158,9 @@ func (r *RemoteK8sService) DeployResource(res *common.ResourceInstanceAction, ta
 	request.Spec = &ResourceSpec{
 		ApiVer: res.Instance.Spec.ApiVer,
 		Schema: res.Instance.Spec.Schema,
-		Loaded: *res.Instance.Spec.Loaded,
+	}
+	if res.Instance.Spec.Loaded != nil {
+		request.Spec.Loaded = *res.Instance.Spec.Loaded
 	}
 	request.InstName = res.Instance.InstName
 	request.Label = res.Instance.Label

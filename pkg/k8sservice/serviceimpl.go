@@ -116,8 +116,6 @@ func (s *server) GetPodLog(req *PodLogRequest, streamServer grpc.ServerStreaming
 
 	logReader, err := s.client.GetPodLog(podRaw, req.Container)
 
-	logger.Info("server getting pod log")
-
 	if err != nil {
 		logger.Info("error getting pod log", zap.Error(err))
 		return err
