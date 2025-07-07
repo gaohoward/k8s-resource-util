@@ -225,11 +225,12 @@ func (r *RemoteK8sService) FetchAllApiResources(force bool) *common.ApiResourceI
 		ResMap:  resMap,
 	}
 
-	if !apiInfo.Cached {
-		persister := common.GetApiResourcePersister()
-		persister.Save(apiInfo)
-		logger.Info("saved updated api-resources", zap.Int("list", len(apiInfo.ResList)), zap.Int("map", len(apiInfo.ResMap)), zap.Bool("cached", apiInfo.Cached))
-	}
+	// handle the persistence at gui side!
+	// if !apiInfo.Cached {
+	// 	persister := common.GetApiResourcePersister()
+	// 	persister.Save(apiInfo)
+	// 	logger.Info("saved updated api-resources", zap.Int("list", len(apiInfo.ResList)), zap.Int("map", len(apiInfo.ResMap)), zap.Bool("cached", apiInfo.Cached))
+	// }
 
 	return apiInfo
 }

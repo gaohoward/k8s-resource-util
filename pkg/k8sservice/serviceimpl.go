@@ -91,7 +91,6 @@ func (s *server) FetchGVRInstances(ctx context.Context, req *FetchGvrRequest) (*
 
 	rjson, err := json.Marshal(result)
 
-	logger.Info("Fetched gvr inst", zap.String("result", string(rjson)))
 	if err != nil {
 		return nil, err
 	}

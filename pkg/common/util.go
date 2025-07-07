@@ -304,9 +304,7 @@ func (d *DummyApiResourcePersister) Load() (*ApiResourceInfo, error) {
 
 func GetAllUnstructuredItems(data []*unstructured.UnstructuredList) []*unstructured.Unstructured {
 	items := make([]*unstructured.Unstructured, 0)
-	logger.Info("get all unstructed from", zap.Int("len", len(data)))
 	for _, l := range data {
-		logger.Info("found one in data", zap.Int("items", len(l.Items)), zap.Any("item", l))
 		for _, i := range l.Items {
 			items = append(items, &i)
 		}
