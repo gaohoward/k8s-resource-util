@@ -52,7 +52,7 @@ Package 'xkbcommon-x11' not found
 ```
 You need to install the missing dependencies described [here](https://gioui.org/doc/install/linux)
 
-[See this for more info on other platforms](https://gioui.org/doc/install/)
+[See this for more info on other platforms](https://gioui.org/doc/install)
 
 ## Note
 
