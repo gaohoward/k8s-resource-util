@@ -360,8 +360,6 @@ func (l *LogReader) Read(p []byte) (n int, err error) {
 
 	num := 0
 	if logSeg != nil {
-		logger.Info("read string from stream", zap.Int("len", len(logSeg.Value)))
-		logger.Info("bytes len", zap.Int("len", len([]byte(logSeg.Value))))
 		copy(p, []byte(logSeg.Value))
 		num = len(logSeg.Value)
 	}
