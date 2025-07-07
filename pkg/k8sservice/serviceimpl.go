@@ -53,6 +53,10 @@ func (s *server) GetClusterInfo(context.Context, *emptypb.Empty) (*ClusterInfoRe
 func (s *server) FetchAllApiResources(ctx context.Context, req *wrapperspb.BoolValue) (*ApiResourceInfoReply, error) {
 	allRes := s.client.FetchAllApiResources(req.Value)
 
+	if allRes == nil {
+		return nil, nil
+	}
+
 	resList := make([]string, 0)
 	for _, l := range allRes.ResList {
 		if ljson, err := json.Marshal(l); err == nil {
@@ -86,6 +90,8 @@ func (s *server) FetchGVRInstances(ctx context.Context, req *FetchGvrRequest) (*
 	}
 
 	rjson, err := json.Marshal(result)
+
+	logger.Info("Fetched gvr inst", zap.String("result", string(rjson)))
 	if err != nil {
 		return nil, err
 	}

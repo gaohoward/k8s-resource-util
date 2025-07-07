@@ -399,6 +399,7 @@ func (s *SearchResultItem) GetDetails(gtx layout.Context, th *material.Theme) []
 }
 
 func getSearchResultList(th *material.Theme, result []*unstructured.UnstructuredList) []*SearchResultItem {
+	logger.Info("get search list")
 	resultList := make([]*SearchResultItem, 0)
 	itemList := common.GetAllUnstructuredItems(result)
 	for _, item := range itemList {
@@ -665,11 +666,16 @@ func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
 	}
 
 	resultPanel := func(gtx layout.Context) layout.Dimensions {
+		logger.Info("updating search panel result")
 		result, _ := common.GetContextData(CONTEXT_KEY_API_SEARCH_RESULT)
 		if result == nil {
 			return material.H5(th, "No result.").Layout(gtx)
 		}
 		if uList, ok := result.([]*SearchResultItem); ok {
+
+			if len(uList) > 0 {
+				logger.Info("found result", zap.Int("len", len(uList)))
+			}
 
 			// Configure a label styled to be a heading.
 			headingLabel := material.Body1(th, "")
@@ -834,6 +840,7 @@ func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
 								result, _ := tab.Query()
 								logger.Info("result queried", zap.Int("size", len(result)))
 								resultList := getSearchResultList(th, result)
+								logger.Info("pusing result", zap.Int("len", len(resultList)))
 								common.SetContextData(CONTEXT_KEY_API_SEARCH_RESULT, resultList, nil)
 							}
 

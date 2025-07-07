@@ -30,6 +30,7 @@ type K8sService interface {
 	IsValid() bool
 	DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, error)
 	GetClusterInfo() *common.ClusterInfo
+	// now the resource info no longer persisted (cached in mem only) for remote agent
 	FetchAllApiResources(force bool) *common.ApiResourceInfo
 	FetchGVRInstances(g string, v string, r string, ns string) (*unstructured.UnstructuredList, error)
 	FetchAllNamespaces() ([]string, error)
@@ -57,12 +58,12 @@ func (l *LocalK8sService) DeployResource(res *common.ResourceInstanceAction, tar
 func (l *LocalK8sService) FetchAllApiResources(force bool) *common.ApiResourceInfo {
 	apiInfo := l.localClient.FetchAllApiResources(force)
 
-	if apiInfo != nil && !apiInfo.Cached {
-		persister := common.GetApiResourcePersister()
-		persister.Save(apiInfo)
-		logger.Info("saved updated api-resources")
-	}
-
+	// dont do any persistence at k8s service level. handle it on gui side!
+	// if apiInfo != nil && !apiInfo.Cached {
+	// 	persister := common.GetApiResourcePersister()
+	// 	persister.Save(apiInfo)
+	// 	logger.Info("saved updated api-resources")
+	// }
 	return apiInfo
 }
 
@@ -190,6 +191,10 @@ func (r *RemoteK8sService) FetchAllApiResources(force bool) *common.ApiResourceI
 		return nil
 	}
 
+	if reply == nil {
+		return nil
+	}
+
 	apiResList := make([]*v1.APIResourceList, 0)
 
 	for _, apiList := range reply.ApiResourceListJson {
@@ -223,7 +228,7 @@ func (r *RemoteK8sService) FetchAllApiResources(force bool) *common.ApiResourceI
 	if !apiInfo.Cached {
 		persister := common.GetApiResourcePersister()
 		persister.Save(apiInfo)
-		logger.Info("saved updated api-resources")
+		logger.Info("saved updated api-resources", zap.Int("list", len(apiInfo.ResList)), zap.Int("map", len(apiInfo.ResMap)), zap.Bool("cached", apiInfo.Cached))
 	}
 
 	return apiInfo

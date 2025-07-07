@@ -146,15 +146,15 @@ func (k *K8sClient) FetchAllApiResources(force bool) *common.ApiResourceInfo {
 	fetched := false
 
 	if force && k.IsValid() {
-		k.allRes = &common.ApiResourceInfo{
-			ResList: make([]*v1.APIResourceList, 0),
-			ResMap:  make(map[string]*common.ApiResourceEntry, 0),
-		}
 		apiResourceList, err := k.discoveryClient.ServerPreferredResources()
 		if err != nil {
 			logger.Error("Error fetching API resources", zap.Error(err))
 		} else {
 			fetched = true
+			k.allRes = &common.ApiResourceInfo{
+				ResList: make([]*v1.APIResourceList, 0),
+				ResMap:  make(map[string]*common.ApiResourceEntry, 0),
+			}
 			if len(k.allRes.ResList) > 0 {
 				k.allRes.ResList = make([]*v1.APIResourceList, 0)
 			}
@@ -181,16 +181,10 @@ func (k *K8sClient) FetchAllApiResources(force bool) *common.ApiResourceInfo {
 		}
 	}
 
-	if !fetched {
-		var err error
-		k.allRes, err = common.GetCachedApiResourceList()
-		if err != nil {
-			logger.Info("failed to fetch cached api-resources", zap.String("error", err.Error()))
-		} else {
-			k.allRes.Cached = true
-		}
-	} else {
+	if fetched {
 		k.allRes.Cached = false
+	} else if k.allRes != nil {
+		k.allRes.Cached = true
 	}
 
 	return k.allRes
@@ -436,14 +430,16 @@ func InitLocalK8sClient(configPath *string) {
 func ToApiVer(userInput string) (string, error) {
 	lowerInput := strings.ToLower(userInput)
 	allres := k8sClient.FetchAllApiResources(false)
-	for _, resList := range allres.ResList {
-		gv := resList.GroupVersion
-		for _, res := range resList.APIResources {
-			apiVer := gv + "/" + res.Name
-			apiVer2 := gv + "/" + res.SingularName
-			if lowerInput == res.Name || lowerInput == res.SingularName ||
-				lowerInput == apiVer || lowerInput == apiVer2 {
-				return apiVer, nil
+	if allres != nil {
+		for _, resList := range allres.ResList {
+			gv := resList.GroupVersion
+			for _, res := range resList.APIResources {
+				apiVer := gv + "/" + res.Name
+				apiVer2 := gv + "/" + res.SingularName
+				if lowerInput == res.Name || lowerInput == res.SingularName ||
+					lowerInput == apiVer || lowerInput == apiVer2 {
+					return apiVer, nil
+				}
 			}
 		}
 	}
