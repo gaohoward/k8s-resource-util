@@ -145,7 +145,7 @@ func (k *K8sClient) FetchAllApiResources(force bool) *common.ApiResourceInfo {
 
 	fetched := false
 
-	if force && k.IsValid() {
+	if force && k.IsValid() || k.allRes == nil {
 		apiResourceList, err := k.discoveryClient.ServerPreferredResources()
 		if err != nil {
 			logger.Error("Error fetching API resources", zap.Error(err))

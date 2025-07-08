@@ -188,9 +188,11 @@ func NewDeploymentTab(th *material.Theme, dr *k8sservice.DeployedResources, k8sC
 						if dd.ApiVer == "" {
 							value = "collection"
 						} else {
-							apiRes := allRes.FindApiResource(dd.ApiVer)
-							if apiRes != nil {
-								value = apiRes.ApiRes.Kind
+							if allRes != nil {
+								apiRes := allRes.FindApiResource(dd.ApiVer)
+								if apiRes != nil {
+									value = apiRes.ApiRes.Kind
+								}
 							} else {
 								value = "Not Found " + dd.ApiVer
 							}

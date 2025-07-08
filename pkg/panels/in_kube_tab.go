@@ -399,7 +399,6 @@ func (s *SearchResultItem) GetDetails(gtx layout.Context, th *material.Theme) []
 }
 
 func getSearchResultList(th *material.Theme, result []*unstructured.UnstructuredList) []*SearchResultItem {
-	logger.Info("get search list")
 	resultList := make([]*SearchResultItem, 0)
 	itemList := common.GetAllUnstructuredItems(result)
 	for _, item := range itemList {
