@@ -113,6 +113,10 @@ type ApiResourceEntry struct {
 	Schema string
 }
 
+func (are *ApiResourceEntry) Key() string {
+	return are.ApiVer + are.ApiRes.Name
+}
+
 func (are *ApiResourceEntry) GetFileName() string {
 	fn := strings.ReplaceAll(are.ApiVer, "/", "_")
 	return fn + ".schema"

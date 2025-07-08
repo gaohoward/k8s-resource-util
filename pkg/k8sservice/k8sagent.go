@@ -103,11 +103,19 @@ func (l *LocalK8sService) IsValid() bool {
 }
 
 type RemoteK8sService struct {
-	Conn *grpc.ClientConn
+	Conn  *grpc.ClientConn
+	Cache *K8sClientCache
 }
 
 // GetCRDFor implements K8sService.
 func (r *RemoteK8sService) GetCRDFor(resEntry *common.ApiResourceEntry) (string, error) {
+
+	if cached, timeout := r.Cache.GetString(resEntry.Key()); cached != nil {
+		if !timeout {
+			return *cached, nil
+		}
+	}
+
 	if r.Conn == nil {
 		return "", fmt.Errorf("no connection")
 	}
@@ -138,6 +146,8 @@ func (r *RemoteK8sService) GetCRDFor(resEntry *common.ApiResourceEntry) (string,
 	if reply.Error != "" {
 		return "", fmt.Errorf(reply.Error)
 	}
+
+	r.Cache.Put(resEntry.Key(), reply.Crd)
 
 	return reply.Crd, nil
 }
@@ -176,6 +186,13 @@ func (r *RemoteK8sService) DeployResource(res *common.ResourceInstanceAction, ta
 
 // FetchAllApiResources implements K8sService.
 func (r *RemoteK8sService) FetchAllApiResources(force bool) *common.ApiResourceInfo {
+
+	if cached, timeout := r.Cache.GetObject("api_resources"); cached != nil {
+		if !timeout {
+			return cached.(*common.ApiResourceInfo)
+		}
+	}
+
 	if r.Conn == nil {
 		return nil
 	}
@@ -232,11 +249,19 @@ func (r *RemoteK8sService) FetchAllApiResources(force bool) *common.ApiResourceI
 	// 	logger.Info("saved updated api-resources", zap.Int("list", len(apiInfo.ResList)), zap.Int("map", len(apiInfo.ResMap)), zap.Bool("cached", apiInfo.Cached))
 	// }
 
+	r.Cache.Put("api_resources", apiInfo)
 	return apiInfo
 }
 
 // FetchAllNamespaces implements K8sService.
 func (r *RemoteK8sService) FetchAllNamespaces() ([]string, error) {
+
+	if cached, timeout := r.Cache.GetObject("namespaces"); cached != nil {
+		if !timeout {
+			return cached.([]string), nil
+		}
+	}
+
 	if r.Conn == nil {
 		return nil, fmt.Errorf("no connection")
 	}
@@ -250,11 +275,22 @@ func (r *RemoteK8sService) FetchAllNamespaces() ([]string, error) {
 	if reply.Error != "" {
 		return nil, fmt.Errorf("remote service error: %s", reply.Error)
 	}
+
+	r.Cache.Put("namespaces", reply.Namespaces)
+
 	return reply.Namespaces, nil
 }
 
 // FetchGVRInstances implements K8sService.
 func (r *RemoteK8sService) FetchGVRInstances(g string, v string, res string, ns string) (*unstructured.UnstructuredList, error) {
+
+	key := g + v + res + ns
+	if cached, timeout := r.Cache.GetObject(key); cached != nil {
+		if !timeout {
+			return cached.(*unstructured.UnstructuredList), nil
+		}
+	}
+
 	if r.Conn == nil {
 		return nil, fmt.Errorf("no connection")
 	}
@@ -278,6 +314,7 @@ func (r *RemoteK8sService) FetchGVRInstances(g string, v string, res string, ns 
 		if err != nil {
 			return nil, fmt.Errorf("failed to unmarshal unstructured list: %w", err)
 		}
+		r.Cache.Put(key, result)
 		return result, nil
 	}
 	return nil, fmt.Errorf("no unstructured list returned from remote service")
@@ -285,6 +322,13 @@ func (r *RemoteK8sService) FetchGVRInstances(g string, v string, res string, ns 
 
 // GetClusterInfo implements K8sService.
 func (r *RemoteK8sService) GetClusterInfo() *common.ClusterInfo {
+
+	if cached, timeout := r.Cache.GetObject("cluster_info"); cached != nil {
+		if !timeout {
+			return cached.(*common.ClusterInfo)
+		}
+	}
+
 	if r.Conn == nil {
 		return nil
 	}
@@ -304,11 +348,20 @@ func (r *RemoteK8sService) GetClusterInfo() *common.ClusterInfo {
 		Id:   reply.Id,
 	}
 
+	r.Cache.Put("cluster_info", clusterInfo)
+
 	return clusterInfo
 }
 
 // GetClusterName implements K8sService.
 func (r *RemoteK8sService) GetClusterName() string {
+
+	if cached, timeout := r.Cache.GetString("cluster_name"); cached != nil {
+		if !timeout {
+			return *cached
+		}
+	}
+
 	if r.Conn == nil {
 		return ""
 	}
@@ -322,11 +375,21 @@ func (r *RemoteK8sService) GetClusterName() string {
 	if err != nil {
 		return ""
 	}
+	r.Cache.Put("cluster_name", value.Value)
 	return value.Value
 }
 
 // GetPodContainers implements K8sService.
 func (r *RemoteK8sService) GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error) {
+
+	key := "get_pod_containers: " + podRaw.GetName() + "/" + podRaw.GetNamespace()
+
+	if cached, timeout := r.Cache.GetObject(key); cached != nil {
+		if !timeout {
+			return cached.([]string), nil
+		}
+	}
+
 	if r.Conn == nil {
 		return nil, fmt.Errorf("no remote connection")
 	}
@@ -347,6 +410,8 @@ func (r *RemoteK8sService) GetPodContainers(podRaw *unstructured.Unstructured) (
 	if err != nil {
 		return nil, fmt.Errorf("failed rpc call %v", err)
 	}
+
+	r.Cache.Put(key, reply.GetContainers())
 
 	return reply.GetContainers(), nil
 }
@@ -412,6 +477,15 @@ func (r *RemoteK8sService) GetPodLog(podRaw *unstructured.Unstructured, containe
 
 // IsValid implements K8sService.
 func (r *RemoteK8sService) IsValid() bool {
+
+	key := "is_client_valid"
+
+	if cached, timeout := r.Cache.GetBool(key); cached != nil {
+		if !timeout {
+			return *cached
+		}
+	}
+
 	if r.Conn == nil {
 		return false
 	}
@@ -424,6 +498,9 @@ func (r *RemoteK8sService) IsValid() bool {
 		logger.Error("failed rpc", zap.Error(err))
 		return false
 	}
+
+	r.Cache.Put(key, result.Value)
+
 	return result.Value
 }
 
@@ -431,7 +508,9 @@ var k8sService K8sService
 
 func NewRemoteK8sService(agentUrl string) *RemoteK8sService {
 
-	service := &RemoteK8sService{}
+	service := &RemoteK8sService{
+		Cache: NewK8sCache(),
+	}
 
 	parts := strings.Split(agentUrl, ":")
 	host := parts[0]
@@ -465,7 +544,7 @@ func NewLocalK8sService() *LocalK8sService {
 
 func InitK8sService() {
 
-	// kubeconfig can be like agent=host:7555
+	// kubeconfig can be like agent=host:8080
 	if strings.HasPrefix(options.Options.Kubeconfig, "agent=") {
 
 		agentUrl := strings.TrimPrefix(options.Options.Kubeconfig, "agent=")
