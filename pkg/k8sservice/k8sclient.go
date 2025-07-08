@@ -145,7 +145,7 @@ func (k *K8sClient) FetchAllApiResources(force bool) *common.ApiResourceInfo {
 
 	fetched := false
 
-	if force && k.IsValid() || k.allRes == nil {
+	if (force || k.allRes == nil) && k.IsValid() {
 		apiResourceList, err := k.discoveryClient.ServerPreferredResources()
 		if err != nil {
 			logger.Error("Error fetching API resources", zap.Error(err))
@@ -414,14 +414,17 @@ func _getK8sClient() *K8sClient {
 func InitLocalK8sClient(configPath *string) {
 	logger.Info("Init local k8sclient", zap.String("config", *configPath))
 	config, err := clientcmd.BuildConfigFromFlags("", *configPath)
+	setupErr := ""
 
 	if err != nil {
 		logger.Error("Failed to get client", zap.Error(err))
 		config = nil
+		setupErr = err.Error()
 	}
+
 	k8sClient = &K8sClient{
 		config:   config,
-		setupErr: "",
+		setupErr: setupErr,
 	}
 
 	k8sClient.SetupClients()
