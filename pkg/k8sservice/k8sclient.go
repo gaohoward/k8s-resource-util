@@ -43,7 +43,7 @@ import (
 	ktlexplain "k8s.io/kubectl/pkg/explain/v2"
 )
 
-var k8sClient *K8sClient
+var internalClient *K8sClient
 
 var NoApiResourceInfo = common.ApiResourceInfo{}
 
@@ -407,11 +407,7 @@ func (k *K8sClient) GetPodLog(podRaw *unstructured.Unstructured, container strin
 	}
 }
 
-func _getK8sClient() *K8sClient {
-	return k8sClient
-}
-
-func InitLocalK8sClient(configPath *string) {
+func InitInternalK8sClient(configPath *string) {
 	logger.Info("Init local k8sclient", zap.String("config", *configPath))
 	config, err := clientcmd.BuildConfigFromFlags("", *configPath)
 	setupErr := ""
@@ -422,12 +418,12 @@ func InitLocalK8sClient(configPath *string) {
 		setupErr = err.Error()
 	}
 
-	k8sClient = &K8sClient{
+	internalClient = &K8sClient{
 		config:   config,
 		setupErr: setupErr,
 	}
 
-	k8sClient.SetupClients()
+	internalClient.SetupClients()
 }
 
 func ToApiVer(userInput string) (string, error) {
@@ -495,7 +491,7 @@ func CreateCRFor(res *common.ApiResourceEntry, name string) string {
 
 // Create a instance of apiVer resource
 func NewInstance(apiVer string, name string, order int) (*common.ResourceInstance, error) {
-	allres := k8sClient.FetchAllApiResources(false)
+	allres := GetK8sService().FetchAllApiResources(false)
 	if allres != nil {
 		if res := allres.FindApiResource(apiVer); res != nil {
 			inst := &common.ResourceInstance{

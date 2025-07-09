@@ -230,7 +230,7 @@ func Run() {
 	s := grpc.NewServer()
 
 	RegisterGrpcK8SServiceServer(s, &server{
-		client: _getK8sClient(),
+		client: internalClient,
 	})
 
 	logger.Info("server listening", zap.String("port", "8080"))

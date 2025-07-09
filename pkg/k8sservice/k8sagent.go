@@ -538,7 +538,7 @@ func NewRemoteK8sService(agentUrl string) *RemoteK8sService {
 
 func NewLocalK8sService() *LocalK8sService {
 	return &LocalK8sService{
-		localClient: _getK8sClient(),
+		localClient: internalClient,
 	}
 }
 
@@ -551,7 +551,7 @@ func InitK8sService() {
 
 		k8sService = NewRemoteK8sService(agentUrl)
 	} else {
-		InitLocalK8sClient(&options.Options.Kubeconfig)
+		InitInternalK8sClient(&options.Options.Kubeconfig)
 		k8sService = NewLocalK8sService()
 	}
 }
