@@ -432,7 +432,7 @@ func InitLocalK8sClient(configPath *string) {
 
 func ToApiVer(userInput string) (string, error) {
 	lowerInput := strings.ToLower(userInput)
-	allres := k8sClient.FetchAllApiResources(false)
+	allres := GetK8sService().FetchAllApiResources(false)
 	if allres != nil {
 		for _, resList := range allres.ResList {
 			gv := resList.GroupVersion
@@ -470,7 +470,7 @@ func GetResSpec(res *common.ApiResourceEntry) *common.ResourceSpec {
 	}
 
 	var err error
-	spec.Schema, err = _getK8sClient().GetCRDFor(res)
+	spec.Schema, err = GetK8sService().GetCRDFor(res)
 	if err != nil {
 		spec.Schema = err.Error()
 	}
