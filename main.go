@@ -44,9 +44,6 @@ func run(window *app.Window, appUi *appui.AppUI) error {
 	}()
 	for {
 		e := window.Event()
-		// the explorer is not used for now as it only allows to choose files not dirs
-		// however it may be useful for opening a repo, where it can be identified
-		// as a dir with a .desc file (setting explorer's filter)
 		common.GetExplorer().ListenEvents(e)
 		switch e := e.(type) {
 		case app.DestroyEvent:

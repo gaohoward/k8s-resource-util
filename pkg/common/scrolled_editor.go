@@ -15,6 +15,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+	"go.uber.org/zap"
 )
 
 // as editors doesn't have scroll bar support
@@ -52,6 +53,12 @@ type CopyMenuAction struct {
 	MenuFunc func(gtx layout.Context) layout.Dimensions
 }
 
+type SaveMenuAction struct {
+	Name     string
+	saveBtn  widget.Clickable
+	MenuFunc func(gtx layout.Context) layout.Dimensions
+}
+
 // GetMenuOption implements MenuAction.
 func (cma *CopyMenuAction) GetMenuOption() func(gtx layout.Context) layout.Dimensions {
 	return cma.MenuFunc
@@ -81,6 +88,46 @@ func NewCopyMenuAction(th *material.Theme) *CopyMenuAction {
 	return copyAct
 }
 
+func (sma *SaveMenuAction) GetMenuOption() func(gtx layout.Context) layout.Dimensions {
+	return sma.MenuFunc
+}
+
+// GetName implements MenuAction.
+func (sma *SaveMenuAction) GetName() string {
+	return sma.Name
+}
+
+func (sma *SaveMenuAction) GetClickable() *widget.Clickable {
+	return &sma.saveBtn
+}
+
+func (sma *SaveMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
+	go func() {
+		writer, err := GetExplorer().CreateFile("unnamed")
+		if err != nil {
+			logger.Info("failed to save file", zap.Error(err))
+			return
+		}
+		defer writer.Close()
+
+		for _, line := range editor.content {
+			writer.Write([]byte(line + "\n"))
+		}
+	}()
+
+	return nil
+}
+
+func NewSaveMenuAction(th *material.Theme) *SaveMenuAction {
+	saveAct := &SaveMenuAction{
+		Name: "Save",
+	}
+	saveAct.MenuFunc = func(gtx layout.Context) layout.Dimensions {
+		return ItemFunc(th, gtx, &saveAct.saveBtn, saveAct.Name, graphics.SaveIcon)
+	}
+	return saveAct
+}
+
 func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []MenuAction) *ReadOnlyEditor {
 	se := &ReadOnlyEditor{
 		th:              th,
@@ -92,9 +139,14 @@ func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []
 
 	menuOptions := make([]func(gtx layout.Context) layout.Dimensions, 0)
 
-	copyAct := NewCopyMenuAction(th)
 	allActs := make([]MenuAction, 0)
+
+	copyAct := NewCopyMenuAction(th)
 	allActs = append(allActs, copyAct)
+
+	saveAct := NewSaveMenuAction(th)
+	allActs = append(allActs, saveAct)
+
 	allActs = append(allActs, actions...)
 
 	for _, action := range allActs {
