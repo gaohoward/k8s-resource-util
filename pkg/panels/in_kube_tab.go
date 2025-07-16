@@ -330,52 +330,70 @@ func (s *SearchResultItem) GetStatusIcon(th *material.Theme) common.ResStatusInf
 		} else {
 			podStatusInfo := common.NewPodStatusInfo(pod.GetName(), th)
 
-			for _, con := range pod.Status.InitContainerStatuses {
-				if con.State.Terminated != nil {
-					if con.State.Terminated.ExitCode != 0 {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason, th)
-						podStatusInfo.SetStatus(common.PodError, "container terminated with error", th)
+			if len(pod.Status.InitContainerStatuses) == 0 {
+				// for some reason no init status for example when pod is in pending phase
+				for _, con := range pod.Spec.InitContainers {
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, string(pod.Status.Phase), th)
+					podStatusInfo.SetStatus(common.PodUnknown, "container status unkown", th)
+				}
+			} else {
+				for _, con := range pod.Status.InitContainerStatuses {
+					if con.State.Terminated != nil {
+						if con.State.Terminated.ExitCode != 0 {
+							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason, th)
+							podStatusInfo.SetStatus(common.PodError, "container terminated with error", th)
+						} else {
+							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message, th)
+							podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally", th)
+						}
+					} else if con.State.Waiting != nil {
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason, th)
+						podStatusInfo.SetStatus(common.PodError, "container waiting", th)
+					} else if con.State.Running != nil {
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String(), th)
+						podStatusInfo.SetStatus(common.PodRunning, "container running", th)
 					} else {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message, th)
-						podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally", th)
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state", th)
+						podStatusInfo.SetStatus(common.PodUnknown, "container state unknown", th)
 					}
-				} else if con.State.Waiting != nil {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason, th)
-					podStatusInfo.SetStatus(common.PodError, "container waiting", th)
-				} else if con.State.Running != nil {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String(), th)
-					podStatusInfo.SetStatus(common.PodRunning, "container running", th)
-				} else {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state", th)
-					podStatusInfo.SetStatus(common.PodUnknown, "container state unknown", th)
 				}
 			}
 
 			allContainerRunning := true
 
-			for _, con := range pod.Status.ContainerStatuses {
-				if con.State.Terminated != nil {
-					if con.State.Terminated.ExitCode != 0 {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason, th)
-						podStatusInfo.SetStatus(common.PodError, "container terminated with error", th)
+			if len(pod.Status.ContainerStatuses) == 0 {
+				// for some reason no init status for example when pod is in pending phase
+				for _, con := range pod.Spec.Containers {
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, string(pod.Status.Phase), th)
+					podStatusInfo.SetStatus(common.PodUnknown, "container status unkown", th)
+				}
+				allContainerRunning = false
+			} else {
+				for _, con := range pod.Status.ContainerStatuses {
+					if con.State.Terminated != nil {
+						if con.State.Terminated.ExitCode != 0 {
+							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason, th)
+							podStatusInfo.SetStatus(common.PodError, "container terminated with error", th)
+							allContainerRunning = false
+						} else {
+							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message, th)
+							podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally", th)
+							allContainerRunning = false
+						}
+					} else if con.State.Waiting != nil {
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason, th)
+						podStatusInfo.SetStatus(common.PodError, "container waiting", th)
 						allContainerRunning = false
+					} else if con.State.Running != nil {
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String(), th)
 					} else {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message, th)
-						podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally", th)
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state", th)
+						podStatusInfo.SetStatus(common.PodUnknown, "container state unknown", th)
 						allContainerRunning = false
 					}
-				} else if con.State.Waiting != nil {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason, th)
-					podStatusInfo.SetStatus(common.PodError, "container waiting", th)
-					allContainerRunning = false
-				} else if con.State.Running != nil {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String(), th)
-				} else {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state", th)
-					podStatusInfo.SetStatus(common.PodUnknown, "container state unknown", th)
-					allContainerRunning = false
 				}
 			}
+
 			if allContainerRunning {
 				podStatusInfo.SetStatus(common.PodRunning, "container running", th)
 			}

@@ -162,8 +162,10 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			// container tabs
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+
 				return p.conLogList.Layout(gtx, len(p.containerLogs), func(gtx layout.Context, index int) layout.Dimensions {
 					conLog := p.containerLogs[index]
+
 					if conLog.clickable.Clicked(gtx) || conLog.status.Clickable.Clicked(gtx) {
 						if p.currentLog != conLog {
 							p.currentLog = conLog
@@ -404,6 +406,7 @@ func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) {
 		logger.Warn("Failed to get pod containers", zap.Error(err))
 		return
 	}
+
 	for i, c := range cons {
 		cl := &ContainerLog{
 			detail:               pd,
