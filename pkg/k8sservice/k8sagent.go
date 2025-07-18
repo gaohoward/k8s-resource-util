@@ -559,3 +559,14 @@ func InitK8sService() {
 func GetK8sService() K8sService {
 	return k8sService
 }
+
+func GetSchema(apiVer string) string {
+	allres := GetK8sService().FetchAllApiResources(false)
+	if allres != nil {
+		if res := allres.FindApiResource(apiVer); res != nil {
+			spec := GetResSpec(res)
+			return spec.Schema
+		}
+	}
+	return "Schema not found: " + apiVer
+}

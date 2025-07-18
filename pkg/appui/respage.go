@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"strings"
 
 	"slices"
 
@@ -322,8 +323,16 @@ func (rp *ResourcePage) setCurrent(newCurrent *ActiveResource) {
 		rp.current = newCurrent.Instance
 		rp.crPanel.SetText(rp.current.GetCR())
 		schema := rp.current.GetSpecSchema()
+		if schema == "" || IsCached(schema) {
+			// when loaded from repo, the non-builtin schema is not loaded
+			schema = k8sservice.GetSchema(rp.current.GetSpecApiVer())
+		}
 		rp.crdEditor.SetText(&schema)
 	}
+}
+
+func IsCached(schema string) bool {
+	return strings.Contains(schema, "=== Cached ===")
 }
 
 func (rp *ResourcePage) Activate(id string) {
