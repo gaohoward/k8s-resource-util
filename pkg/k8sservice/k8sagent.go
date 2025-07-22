@@ -30,6 +30,7 @@ type K8sService interface {
 	IsValid() bool
 	DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, error)
 	GetClusterInfo() *common.ClusterInfo
+	GetAgent() string
 	// now the resource info no longer persisted (cached in mem only) for remote agent
 	FetchAllApiResources(force bool) *common.ApiResourceInfo
 	FetchGVRInstances(g string, v string, r string, ns string) (*unstructured.UnstructuredList, error)
@@ -42,6 +43,11 @@ type K8sService interface {
 
 type LocalK8sService struct {
 	localClient *K8sClient
+}
+
+// GetAgent implements K8sService.
+func (l *LocalK8sService) GetAgent() string {
+	return "local"
 }
 
 // GetCRDFor implements K8sService.
@@ -103,8 +109,14 @@ func (l *LocalK8sService) IsValid() bool {
 }
 
 type RemoteK8sService struct {
-	Conn  *grpc.ClientConn
-	Cache *K8sClientCache
+	agentUrl string
+	Conn     *grpc.ClientConn
+	Cache    *K8sClientCache
+}
+
+// GetAgent implements K8sService.
+func (r *RemoteK8sService) GetAgent() string {
+	return r.agentUrl
 }
 
 // GetCRDFor implements K8sService.
@@ -520,16 +532,16 @@ func NewRemoteK8sService(agentUrl string) *RemoteK8sService {
 	} else {
 		port = "8080"
 	}
-	url := host + ":" + port
+	service.agentUrl = host + ":" + port
 
 	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
 
-	cc, err := grpc.NewClient(url, opts)
+	cc, err := grpc.NewClient(service.agentUrl, opts)
 	if err != nil {
 		logger.Error("failed to init remote client", zap.Error(err))
 		service.Conn = nil
 	} else {
-		logger.Info("k8s service connection", zap.String("url", url))
+		logger.Info("k8s service connection", zap.String("url", service.agentUrl))
 		service.Conn = cc
 	}
 

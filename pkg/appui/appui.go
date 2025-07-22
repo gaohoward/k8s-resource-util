@@ -303,8 +303,11 @@ func (appUi *AppUI) layoutPanelArea(gtx layout.Context) layout.Dimensions {
 
 func (appUi *AppUI) setupAppBar(gtx layout.Context, th *material.Theme) *layout.FlexChild {
 
-	if k8sservice.GetK8sService().IsValid() {
-		appUi.resourceNavigator.constrolBar.bar.Title = k8sservice.GetK8sService().GetClusterInfo().Host
+	k8s := k8sservice.GetK8sService()
+	if k8s.IsValid() {
+		host := k8s.GetClusterInfo().Host
+		agent := k8s.GetAgent()
+		appUi.resourceNavigator.constrolBar.bar.Title = agent + " -> " + host
 	} else {
 		appUi.resourceNavigator.constrolBar.bar.Title = "no cluster connected"
 	}
