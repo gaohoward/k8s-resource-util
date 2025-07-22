@@ -10,7 +10,7 @@ import (
 )
 
 var statusCheckboxValue = widget.Bool{}
-var showPanelCheckboxValue = widget.Bool{}
+var showPanelCheckboxValue = widget.Bool{Value: true}
 
 func ShowPanel() bool {
 	return showPanelCheckboxValue.Value

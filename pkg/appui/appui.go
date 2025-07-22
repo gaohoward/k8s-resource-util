@@ -324,6 +324,9 @@ func (appUi *AppUI) setupMainContent() *layout.Widget {
 	var content layout.Widget = func(gtx layout.Context) layout.Dimensions {
 		showPanel := graphics.ShowPanel()
 		if showPanel {
+			if appUi.resourcePage.activeResources.Size() == 0 {
+				return appUi.layoutPanelArea(gtx)
+			}
 			return appUi.panelResize.Layout(gtx,
 				func(gtx layout.Context) layout.Dimensions {
 					return appUi.layoutResourceArea(gtx)
