@@ -2,6 +2,8 @@ package k8sservice
 
 import "time"
 
+var DEFAULT_CACHE_TIMEOUT = 2 * 60 * time.Second
+
 type CacheValue struct {
 	value     any
 	timestamp time.Time
@@ -24,7 +26,7 @@ type K8sClientCache struct {
 func NewK8sCache() *K8sClientCache {
 	return &K8sClientCache{
 		cache:   make(map[string]*CacheValue),
-		timeout: 5 * 60 * time.Second,
+		timeout: DEFAULT_CACHE_TIMEOUT,
 	}
 }
 

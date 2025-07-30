@@ -59,6 +59,7 @@ func GetLogger(name string) *zap.Logger {
 	if l, ok := appLoggers[name]; ok {
 		return l
 	}
-	fmt.Printf("No logger named %s found", name)
-	return zap.NewNop()
+	fmt.Printf("No logger named %s found\n", name)
+	fakeLogger, _ := NewAppLogger(name+"-fake", nil)
+	return fakeLogger
 }
