@@ -8,6 +8,7 @@ import (
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"go.uber.org/zap"
 	grpc "google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/protobuf/types/known/emptypb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 	grpc "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/protobuf/types/known/emptypb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -534,9 +535,16 @@ func NewRemoteK8sService(agentUrl string) *RemoteK8sService {
 	}
 	service.agentUrl = host + ":" + port
 
-	opts := grpc.WithTransportCredentials(insecure.NewCredentials())
+	opts := make([]grpc.DialOption, 0)
+	credOpts := grpc.WithTransportCredentials(insecure.NewCredentials())
+	opts = append(opts, credOpts)
+	if options.Options.UseCompressor {
+		logger.Info("using compression in grpc")
+		zipOpts := grpc.WithDefaultCallOptions(grpc.UseCompressor(gzip.Name))
+		opts = append(opts, zipOpts)
+	}
 
-	cc, err := grpc.NewClient(service.agentUrl, opts)
+	cc, err := grpc.NewClient(service.agentUrl, opts...)
 	if err != nil {
 		logger.Error("failed to init remote client", zap.Error(err))
 		service.Conn = nil

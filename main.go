@@ -86,10 +86,14 @@ func main() {
 	var mode *string
 	mode = flag.String("mode", "gui", "running mode")
 
+	var useCompressor *bool
+	useCompressor = flag.Bool("grpc-compression", true, "Whether to use compression in grpc")
+
 	flag.Parse()
 
 	options.Options.Mode = *mode
 	options.Options.Kubeconfig = *kubeconfig
+	options.Options.UseCompressor = *useCompressor
 
 	k8sservice.InitK8sService()
 
