@@ -83,11 +83,9 @@ func main() {
 	} else {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
-	var mode *string
-	mode = flag.String("mode", "gui", "running mode")
+	var mode *string = flag.String("mode", "gui", "running mode")
 
-	var useCompressor *bool
-	useCompressor = flag.Bool("grpc-compression", true, "Whether to use compression in grpc")
+	var useCompressor *bool = flag.Bool("grpc-compression", true, "Whether to use compression in grpc")
 
 	flag.Parse()
 
