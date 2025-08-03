@@ -40,10 +40,17 @@ type K8sService interface {
 	GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error)
 	GetClusterName() string
 	GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
+	GetDescribeFor(item *unstructured.Unstructured) (string, error)
 }
 
 type LocalK8sService struct {
 	localClient *K8sClient
+}
+
+// GetDescribeFor implements K8sService.
+func (l *LocalK8sService) GetDescribeFor(item *unstructured.Unstructured) (string, error) {
+
+	return l.localClient.GetDescribeFor(item)
 }
 
 // GetAgent implements K8sService.
@@ -113,6 +120,43 @@ type RemoteK8sService struct {
 	agentUrl string
 	Conn     *grpc.ClientConn
 	Cache    *K8sClientCache
+}
+
+// GetDescribeFor implements K8sService.
+func (r *RemoteK8sService) GetDescribeFor(item *unstructured.Unstructured) (string, error) {
+
+	key := "describe_for: " + item.GetName() + "/" + item.GetNamespace()
+
+	if cached, timeout := r.Cache.GetObject(key); cached != nil {
+		if !timeout {
+			return cached.(string), nil
+		}
+	}
+
+	if r.Conn == nil {
+		return "", fmt.Errorf("no remote connection")
+	}
+
+	grpcClient := NewGrpcK8SServiceClient(r.Conn)
+
+	itemJson, err := json.Marshal(item)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal item: %w", err)
+	}
+
+	itemStr := wrapperspb.StringValue{
+		Value: string(itemJson),
+	}
+
+	reply, err := grpcClient.GetDescribeFor(context.Background(), &itemStr)
+
+	if err != nil {
+		return "", fmt.Errorf("failed rpc call %v", err)
+	}
+
+	r.Cache.Put(key, reply.GetDescribe())
+
+	return reply.GetDescribe(), nil
 }
 
 // GetAgent implements K8sService.
@@ -557,9 +601,11 @@ func NewRemoteK8sService(agentUrl string) *RemoteK8sService {
 }
 
 func NewLocalK8sService() *LocalK8sService {
-	return &LocalK8sService{
+	localService := &LocalK8sService{
 		localClient: internalClient,
 	}
+
+	return localService
 }
 
 func InitK8sService() {

@@ -407,7 +407,7 @@ func (s *SearchResultItem) GetStatusIcon(th *material.Theme) common.ResStatusInf
 func (s *SearchResultItem) GetDetails(gtx layout.Context, th *material.Theme) []common.IResourceDetail {
 	if len(s.details) == 0 {
 		s.details = make([]common.IResourceDetail, 0)
-		s.details = append(s.details, NewYamlDetail(th, s.item))
+		s.details = append(s.details, NewYamlDetail(th, s.item), NewDescribeDetail(th, s.item))
 		extDetails := GetExtApiDetails(s.item, th, s.statusInfo)
 		if len(extDetails) > 0 {
 			s.details = append(s.details, extDetails...)

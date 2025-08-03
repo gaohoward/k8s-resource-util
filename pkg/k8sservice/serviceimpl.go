@@ -194,6 +194,27 @@ func (s *server) GetCRDFor(ctx context.Context, req *ApiResourceEntry) (*CrdRepl
 	}, nil
 }
 
+func (s *server) GetDescribeFor(_ context.Context, req *wrapperspb.StringValue) (*GetDescribeForReply, error) {
+
+	itemRaw := &unstructured.Unstructured{}
+
+	err := json.Unmarshal([]byte(req.Value), itemRaw)
+	if err != nil {
+		return nil, err
+	}
+
+	describe, err := s.client.GetDescribeFor(itemRaw)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &GetDescribeForReply{
+		Describe: describe,
+	}, nil
+
+}
+
 func NewResourceInstanceAction(req *DeployResourceRequest) *common.ResourceInstanceAction {
 	action := common.ResourceInstanceAction{}
 	action.Action = common.ResourceAction(req.Action)

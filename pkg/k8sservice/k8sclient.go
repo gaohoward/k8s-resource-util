@@ -18,8 +18,10 @@ import (
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/config"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
+	"gaohoward.tools/k8s/resutil/pkg/options"
 	"gioui.org/widget"
 	"github.com/google/uuid"
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	yamlv3 "gopkg.in/yaml.v3"
 	corev1 "k8s.io/api/core/v1"
@@ -30,6 +32,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
@@ -39,6 +43,8 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/kubectl/pkg/cmd/describe"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/explain"
 	ktlexplain "k8s.io/kubectl/pkg/explain/v2"
 )
@@ -129,6 +135,44 @@ type K8sClient struct {
 	generator       ktlexplain.Generator
 	//	client    *rest.Config
 
+}
+
+func (k *K8sClient) createNewKubectlDescribeCommand(ns *string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) *cobra.Command {
+	ioStreams := genericiooptions.IOStreams{In: inReader, Out: outWriter, ErrOut: errWriter}
+	cfgFlags := genericclioptions.NewConfigFlags(false).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+
+	cfgFlags.KubeConfig = &options.Options.Kubeconfig
+	if ns != nil {
+		cfgFlags.Namespace = ns
+	}
+
+	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(cfgFlags)
+
+	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+
+	return describe.NewCmdDescribe("", f, ioStreams)
+}
+
+func (k *K8sClient) GetDescribeFor(item *unstructured.Unstructured) (string, error) {
+
+	ns := item.GetNamespace()
+
+	resType := item.GetKind()
+	resName := item.GetName()
+
+	inReader := strings.NewReader("")
+	outWriter := &strings.Builder{}
+	errWriter := &strings.Builder{}
+
+	cmd := k.createNewKubectlDescribeCommand(&ns, inReader, outWriter, errWriter)
+
+	cmd.Run(cmd, []string{resType, resName})
+
+	if errWriter.Len() > 0 {
+		return errWriter.String(), nil
+	}
+
+	return outWriter.String(), nil
 }
 
 func (k *K8sClient) GetClusterName() string {
