@@ -31,6 +31,7 @@ const (
 	GrpcK8SService_GetPodContainers_FullMethodName     = "/GrpcK8sService/GetPodContainers"
 	GrpcK8SService_GetClusterName_FullMethodName       = "/GrpcK8sService/GetClusterName"
 	GrpcK8SService_GetCRDFor_FullMethodName            = "/GrpcK8sService/GetCRDFor"
+	GrpcK8SService_GetDescribeFor_FullMethodName       = "/GrpcK8sService/GetDescribeFor"
 )
 
 // GrpcK8SServiceClient is the client API for GrpcK8SService service.
@@ -56,6 +57,8 @@ type GrpcK8SServiceClient interface {
 	GetClusterName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*wrapperspb.StringValue, error)
 	// GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
 	GetCRDFor(ctx context.Context, in *ApiResourceEntry, opts ...grpc.CallOption) (*CrdReply, error)
+	// GetDescribeFor(item *unstructured.Unstructured) (string, error)
+	GetDescribeFor(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*GetDescribeForReply, error)
 }
 
 type grpcK8SServiceClient struct {
@@ -175,6 +178,16 @@ func (c *grpcK8SServiceClient) GetCRDFor(ctx context.Context, in *ApiResourceEnt
 	return out, nil
 }
 
+func (c *grpcK8SServiceClient) GetDescribeFor(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*GetDescribeForReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetDescribeForReply)
+	err := c.cc.Invoke(ctx, GrpcK8SService_GetDescribeFor_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GrpcK8SServiceServer is the server API for GrpcK8SService service.
 // All implementations must embed UnimplementedGrpcK8SServiceServer
 // for forward compatibility.
@@ -198,6 +211,8 @@ type GrpcK8SServiceServer interface {
 	GetClusterName(context.Context, *emptypb.Empty) (*wrapperspb.StringValue, error)
 	// GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
 	GetCRDFor(context.Context, *ApiResourceEntry) (*CrdReply, error)
+	// GetDescribeFor(item *unstructured.Unstructured) (string, error)
+	GetDescribeFor(context.Context, *wrapperspb.StringValue) (*GetDescribeForReply, error)
 	mustEmbedUnimplementedGrpcK8SServiceServer()
 }
 
@@ -237,6 +252,9 @@ func (UnimplementedGrpcK8SServiceServer) GetClusterName(context.Context, *emptyp
 }
 func (UnimplementedGrpcK8SServiceServer) GetCRDFor(context.Context, *ApiResourceEntry) (*CrdReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetCRDFor not implemented")
+}
+func (UnimplementedGrpcK8SServiceServer) GetDescribeFor(context.Context, *wrapperspb.StringValue) (*GetDescribeForReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetDescribeFor not implemented")
 }
 func (UnimplementedGrpcK8SServiceServer) mustEmbedUnimplementedGrpcK8SServiceServer() {}
 func (UnimplementedGrpcK8SServiceServer) testEmbeddedByValue()                        {}
@@ -432,6 +450,24 @@ func _GrpcK8SService_GetCRDFor_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GrpcK8SService_GetDescribeFor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(wrapperspb.StringValue)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GrpcK8SServiceServer).GetDescribeFor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GrpcK8SService_GetDescribeFor_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GrpcK8SServiceServer).GetDescribeFor(ctx, req.(*wrapperspb.StringValue))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GrpcK8SService_ServiceDesc is the grpc.ServiceDesc for GrpcK8SService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -474,6 +510,10 @@ var GrpcK8SService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetCRDFor",
 			Handler:    _GrpcK8SService_GetCRDFor_Handler,
+		},
+		{
+			MethodName: "GetDescribeFor",
+			Handler:    _GrpcK8SService_GetDescribeFor_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

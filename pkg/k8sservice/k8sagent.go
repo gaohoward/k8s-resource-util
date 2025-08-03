@@ -16,9 +16,15 @@ import (
 	"google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/protobuf/types/known/emptypb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
+	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/cli-runtime/pkg/genericiooptions"
+	cmddes "k8s.io/kubectl/pkg/cmd/describe"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/describe"
 )
 
 var logger *zap.Logger
@@ -40,10 +46,77 @@ type K8sService interface {
 	GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error)
 	GetClusterName() string
 	GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
+	GetDescribeFor(item *unstructured.Unstructured) (string, error)
 }
 
 type LocalK8sService struct {
 	localClient *K8sClient
+}
+
+// GetDescribeFor implements K8sService.
+func (l *LocalK8sService) GetDescribeFor(item *unstructured.Unstructured) (string, error) {
+	configFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)
+	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(configFlags)
+	cmdFactory := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+
+	describer := func(mapping *meta.RESTMapping) (describe.ResourceDescriber, error) {
+		return describe.DescriberFn(cmdFactory, mapping)
+	}
+
+	ns := item.GetNamespace()
+	enforceNs := true
+	if ns == "" {
+		enforceNs = false
+	}
+
+	resType := item.GetKind()
+	resName := item.GetName()
+	args := []string{
+		resType,
+		resName,
+	}
+
+	o := &cmddes.DescribeOptions{
+		Selector:         "",
+		Namespace:        ns,
+		Describer:        describer,
+		NewBuilder:       cmdFactory.NewBuilder,
+		BuilderArgs:      args,
+		EnforceNamespace: enforceNs,
+		AllNamespaces:    false,
+		FilenameOptions:  nil,
+		DescriberSettings: &describe.DescriberSettings{
+			ShowEvents: true,
+			ChunkSize:  cmdutil.DefaultChunkSize,
+		},
+		IOStreams: genericiooptions.NewTestIOStreamsDiscard(),
+	}
+
+	r := o.NewBuilder().
+		Unstructured().
+		ContinueOnError().
+		NamespaceParam(o.Namespace).DefaultNamespace().AllNamespaces(o.AllNamespaces).
+		LabelSelectorParam(o.Selector).
+		ResourceTypeOrNameArgs(true, o.BuilderArgs...).
+		RequestChunksOf(o.DescriberSettings.ChunkSize).
+		Flatten().
+		Do()
+
+	if r.Err() != nil {
+		return "", r.Err()
+	}
+
+	infos, err := r.Infos()
+	if err != nil {
+		return "", err
+	}
+
+	var sb strings.Builder
+	for _, inf := range infos {
+		sb.WriteString(inf.String())
+	}
+
+	return sb.String(), nil
 }
 
 // GetAgent implements K8sService.
@@ -113,6 +186,43 @@ type RemoteK8sService struct {
 	agentUrl string
 	Conn     *grpc.ClientConn
 	Cache    *K8sClientCache
+}
+
+// GetDescribeFor implements K8sService.
+func (r *RemoteK8sService) GetDescribeFor(item *unstructured.Unstructured) (string, error) {
+
+	key := "describe_for: " + item.GetName() + "/" + item.GetNamespace()
+
+	if cached, timeout := r.Cache.GetObject(key); cached != nil {
+		if !timeout {
+			return cached.(string), nil
+		}
+	}
+
+	if r.Conn == nil {
+		return "", fmt.Errorf("no remote connection")
+	}
+
+	grpcClient := NewGrpcK8SServiceClient(r.Conn)
+
+	itemJson, err := json.Marshal(item)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal item: %w", err)
+	}
+
+	itemStr := wrapperspb.StringValue{
+		Value: string(itemJson),
+	}
+
+	reply, err := grpcClient.GetDescribeFor(context.Background(), &itemStr)
+
+	if err != nil {
+		return "", fmt.Errorf("failed rpc call %v", err)
+	}
+
+	r.Cache.Put(key, reply.GetDescribe())
+
+	return reply.GetDescribe(), nil
 }
 
 // GetAgent implements K8sService.
