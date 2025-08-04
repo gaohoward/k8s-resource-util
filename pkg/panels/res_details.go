@@ -60,48 +60,6 @@ func (r *ResourceDetail) SetSelected(state bool) {
 	r.isSelected = state
 }
 
-type DescribeDetail struct {
-	*ResourceDetail
-	Content       string
-	contentEditor *common.ReadOnlyEditor
-}
-
-func NewDescribeDetail(th *material.Theme, item *unstructured.Unstructured) common.IResourceDetail {
-	d := &DescribeDetail{
-		ResourceDetail: NewDetail(th, "describe", item),
-	}
-
-	d.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil)
-
-	d.contentEditor.SetText(d.getDescribeContent())
-
-	return d
-}
-
-func (dd *DescribeDetail) getDescribeContent() *string {
-	logger.Info("getting describe info", zap.String("name", dd.item.GetName()), zap.String("ns", dd.item.GetNamespace()))
-	service := k8sservice.GetK8sService()
-	var content string
-	var err error
-	if service.IsValid() {
-		content, err = service.GetDescribeFor(dd.item)
-		if err != nil {
-			content = err.Error()
-		}
-	} else {
-		content = fmt.Sprintf("unable to get describe name: %s, ns: %s", dd.item.GetName(), dd.item.GetNamespace())
-	}
-	return &content
-}
-
-func (dd *DescribeDetail) GetContent() layout.Widget {
-	return dd.contentEditor.Layout
-}
-
-func (dd *DescribeDetail) Changed() bool {
-	return false
-}
-
 type YamlDetail struct {
 	*ResourceDetail
 	yamlContent string

@@ -38,10 +38,6 @@ service GrpcK8sService {
 
   // GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
   rpc GetCRDFor(ApiResourceEntry) returns (CrdReply) {}
-
-  // GetDescribeFor(item *unstructured.Unstructured) (string, error)
-	rpc GetDescribeFor(google.protobuf.StringValue) returns (GetDescribeForReply) {}
-
 }
 
 message CrdReply {
@@ -51,11 +47,6 @@ message CrdReply {
 
 message GetPodContainersReply {
   repeated string containers = 1;
-  string error = 2;
-}
-
-message GetDescribeForReply {
-  string describe = 1;
   string error = 2;
 }
 
