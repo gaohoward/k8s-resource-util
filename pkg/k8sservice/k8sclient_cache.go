@@ -2,7 +2,7 @@ package k8sservice
 
 import "time"
 
-var DEFAULT_CACHE_TIMEOUT = 2 * 60 * time.Second
+var DEFAULT_CACHE_TIMEOUT = 1 * 60 * time.Second
 
 type CacheValue struct {
 	value     any

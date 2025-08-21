@@ -17,7 +17,6 @@ import (
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/config"
-	"gaohoward.tools/k8s/resutil/pkg/logs"
 	"gaohoward.tools/k8s/resutil/pkg/options"
 	"gioui.org/widget"
 	"github.com/google/uuid"
@@ -244,9 +243,7 @@ func (k *K8sClient) K8sObjectToYaml(obj runtime.Object) string {
 	return writer.String()
 }
 
-func (k *K8sClient) DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, error) {
-
-	appLogger := logs.GetLogger(logs.IN_APP_LOGGER_NAME)
+func (k *K8sClient) DeployResource(res *common.ResourceInstanceAction, targetNs string, appLogger *zap.Logger) (types.NamespacedName, error) {
 
 	finalNamespace := types.NamespacedName{
 		Name:      res.GetName(),

@@ -29,7 +29,7 @@ func (s *server) IsValid(ctx context.Context, req *emptypb.Empty) (*wrapperspb.B
 
 func (s *server) DeployResource(_ context.Context, resReq *DeployResourceRequest) (*DeployResourceReply, error) {
 	res := NewResourceInstanceAction(resReq)
-	nsn, err := s.client.DeployResource(res, resReq.TargetNs)
+	nsn, err := s.client.DeployResource(res, resReq.TargetNs, logger)
 	if err != nil {
 		return nil, err
 	}

@@ -45,6 +45,7 @@ type K8sService interface {
 
 type LocalK8sService struct {
 	localClient *K8sClient
+	appLogger   *zap.Logger
 }
 
 // GetDescribeFor implements K8sService.
@@ -65,7 +66,7 @@ func (l *LocalK8sService) GetCRDFor(resEntry *common.ApiResourceEntry) (string, 
 
 // DeployResource implements K8sService.
 func (l *LocalK8sService) DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, error) {
-	return l.localClient.DeployResource(res, targetNs)
+	return l.localClient.DeployResource(res, targetNs, l.appLogger)
 }
 
 // FetchAllApiResources implements K8sService.
@@ -600,9 +601,10 @@ func NewRemoteK8sService(agentUrl string) *RemoteK8sService {
 	return service
 }
 
-func NewLocalK8sService() *LocalK8sService {
+func NewLocalK8sService(appLogger *zap.Logger) *LocalK8sService {
 	localService := &LocalK8sService{
 		localClient: internalClient,
+		appLogger:   appLogger,
 	}
 
 	return localService
@@ -618,7 +620,7 @@ func InitK8sService() {
 		k8sService = NewRemoteK8sService(agentUrl)
 	} else {
 		InitInternalK8sClient(&options.Options.Kubeconfig)
-		k8sService = NewLocalK8sService()
+		k8sService = NewLocalK8sService(logs.GetLogger(logs.IN_APP_LOGGER_NAME))
 	}
 }
 
