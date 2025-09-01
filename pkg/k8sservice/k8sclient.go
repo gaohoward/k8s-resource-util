@@ -295,7 +295,7 @@ func (k *K8sClient) DeployResource(res *common.ResourceInstanceAction, targetNs 
 
 	switch res.GetAction() {
 	case common.Create:
-		appLogger.Info("CREATE resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
+		appLogger.Info("CREATE resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()), zap.Any("obj cr", obj))
 		if _, err := dr.Apply(context.TODO(), obj.GetName(), obj, v1.ApplyOptions{FieldManager: common.APP_NAME}); err != nil {
 			appLogger.Error("Failed to create resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
 			logger.Error("Failed to Create resource", zap.Error(err))

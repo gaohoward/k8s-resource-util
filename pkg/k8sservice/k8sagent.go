@@ -221,6 +221,7 @@ func (r *RemoteK8sService) DeployResource(res *common.ResourceInstanceAction, ta
 	request := DeployResourceRequest{}
 	request.Action = int32(res.Action)
 	request.Cr = res.Instance.Cr
+	logger.Info("remote deploying CR", zap.String("cr", request.Cr))
 	request.DefaultNs = res.DefaultNs
 	request.Id = res.Instance.Id
 	request.Order = int32(*res.Instance.Order)
