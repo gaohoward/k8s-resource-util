@@ -7,7 +7,7 @@ generate:
 	protoc pkg/k8sservice/*.proto --go_out=pkg --go-grpc_out=pkg
 
 build: generate
-	go build
+	go build -o out/resutil
 
 test: build
 	go test ./...
