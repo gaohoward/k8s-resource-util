@@ -104,8 +104,7 @@ func (dd *DescribeDetail) Changed() bool {
 type YamlDetail struct {
 	*ResourceDetail
 	yamlContent string
-	ymlEditor   material.EditorStyle
-	ymlArea     widget.Editor
+	ymlEditor   *common.ReadOnlyEditor
 }
 
 func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) common.IResourceDetail {
@@ -119,13 +118,8 @@ func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) common.I
 		d.yamlContent = string(bytes)
 	}
 
-	d.ymlEditor = material.Editor(th, &d.ymlArea, "Yaml")
-	d.ymlEditor.Font.Typeface = "monospace"
-	d.ymlEditor.Editor.ReadOnly = true
-	d.ymlEditor.TextSize = unit.Sp(16)
-	d.ymlEditor.LineHeight = unit.Sp(16)
-
-	d.ymlArea.SetText(d.yamlContent)
+	d.ymlEditor = common.NewReadOnlyEditor(th, "Yaml", 16, nil)
+	d.ymlEditor.SetText(&d.yamlContent)
 
 	return d
 }
