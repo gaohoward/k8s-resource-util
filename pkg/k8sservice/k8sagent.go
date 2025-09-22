@@ -202,7 +202,7 @@ func (r *RemoteK8sService) GetCRDFor(resEntry *common.ApiResourceEntry) (string,
 	}
 
 	if reply.Error != "" {
-		return "", fmt.Errorf(reply.Error)
+		return "", fmt.Errorf("%s", reply.Error)
 	}
 
 	r.Cache.Put(resEntry.Key(), reply.Crd)
