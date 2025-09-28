@@ -1178,6 +1178,7 @@ type IResourceDetail interface {
 	GetLabel() layout.Widget
 	Changed() bool
 	SetSelected(state bool)
+	Save(baseDir string, kind string, name string, ns string)
 }
 
 type StatusType int

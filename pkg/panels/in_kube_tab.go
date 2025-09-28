@@ -6,10 +6,12 @@ import (
 	"strings"
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
+	"gaohoward.tools/k8s/resutil/pkg/config"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
 	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
 	"gioui.org/font"
+	"gioui.org/io/key"
 	"gioui.org/layout"
 	"gioui.org/text"
 	"gioui.org/unit"
@@ -467,6 +469,27 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			resDetails := tab.currentResultItem.GetDetails(gtx, th)
+			for {
+				_, ok := gtx.Event(key.Filter{
+					Required: key.ModCtrl,
+					Name:     "Z",
+				})
+				if ok {
+					if len(resDetails) > 0 {
+						if baseDir, err := config.GetResourceDetailsDir(); err == nil {
+							for _, detail := range resDetails {
+								go detail.Save(baseDir, tab.currentResultItem.item.GetKind(), tab.currentResultItem.item.GetName(), tab.currentResultItem.item.GetNamespace())
+							}
+						} else {
+							logger.Info("Failed to get base dir, collection skipped")
+						}
+						break
+					}
+				} else {
+					break
+				}
+			}
+
 			return tab.detailList.Layout(gtx, len(resDetails), func(gtx layout.Context, index int) layout.Dimensions {
 				detail := resDetails[index]
 				if detail.GetClickable().Clicked(gtx) {

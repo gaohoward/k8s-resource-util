@@ -46,6 +46,24 @@ func GetConfigDir() (string, error) {
 	return configDir, nil
 }
 
+func GetResourceDetailsDir() (string, error) {
+	cfgDir, err := GetConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	resourceDetailsDir := filepath.Join(cfgDir, "resource-details")
+
+	// Create the directory if it doesn't exist
+	if _, err := os.Stat(resourceDetailsDir); os.IsNotExist(err) {
+		err := os.MkdirAll(resourceDetailsDir, 0755)
+		if err != nil {
+			return "", err
+		}
+	}
+	return resourceDetailsDir, nil
+}
+
 func GetCollectionRepos() ([]string, error) {
 
 	cfgDir, err := GetConfigDir()

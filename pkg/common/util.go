@@ -5,8 +5,10 @@ import (
 	"image"
 	"image/color"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gaohoward.tools/k8s/resutil/pkg/config"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
@@ -343,4 +345,18 @@ func ReorderSlice[E any](targetSlice []E, fromIndex int, toIndex int) {
 			}
 		}
 	}
+}
+
+// Save should create a unique name like pod_pod1_default_detailtype_timestamp.ext
+func CreateFilePathForK8sObject(baseDir string, kind, name, ns, category, ext string) string {
+	timestamp := time.Now().Format("20060102150405")
+	fileName := kind + "_" + name + "_" + ns + "_" + category + "_" + timestamp + "." + ext
+	return path.Join(baseDir, fileName)
+}
+
+func SaveFile(filePath string, content *string) error {
+	if content == nil {
+		return fmt.Errorf("content is nil")
+	}
+	return os.WriteFile(filePath, []byte(*content), 0644)
 }

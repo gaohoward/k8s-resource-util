@@ -66,6 +66,18 @@ type DescribeDetail struct {
 	contentEditor *common.ReadOnlyEditor
 }
 
+// Save implements common.IResourceDetail.
+func (dd *DescribeDetail) Save(baseDir string, kind string, name string, ns string) {
+	filePath := common.CreateFilePathForK8sObject(baseDir, kind, name, ns, "describe", "txt")
+	content := dd.contentEditor.GetText()
+	err := common.SaveFile(filePath, &content)
+
+	if err != nil {
+		logger.Error("Failed to save describe content", zap.String("file", filePath), zap.Error(err))
+	}
+	logger.Info("successfully saved described file", zap.String("path", filePath))
+}
+
 func NewDescribeDetail(th *material.Theme, item *unstructured.Unstructured) common.IResourceDetail {
 	d := &DescribeDetail{
 		ResourceDetail: NewDetail(th, "describe", item),
@@ -107,6 +119,18 @@ type YamlDetail struct {
 	ymlEditor   *common.ReadOnlyEditor
 }
 
+// Save implements common.IResourceDetail.
+func (yd *YamlDetail) Save(baseDir string, kind string, name string, ns string) {
+	filePath := common.CreateFilePathForK8sObject(baseDir, kind, name, ns, "yaml", "yaml")
+	content := yd.ymlEditor.GetText()
+	err := common.SaveFile(filePath, &content)
+
+	if err != nil {
+		logger.Error("Failed to save yaml content", zap.String("file", filePath), zap.Error(err))
+	}
+	logger.Info("successfully saved yaml file", zap.String("path", filePath))
+}
+
 func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) common.IResourceDetail {
 	d := &YamlDetail{
 		ResourceDetail: NewDetail(th, "yaml", item),
@@ -145,6 +169,22 @@ type PodLogDetail struct {
 	theme      *material.Theme
 
 	bufferLimit int //current the ui can't handle large block of text, so we have a limit here
+}
+
+// Save implements common.IResourceDetail.
+func (p *PodLogDetail) Save(baseDir string, kind string, name string, ns string) {
+	for _, conLog := range p.containerLogs {
+
+		cat := conLog.name + "-log"
+
+		filePath := common.CreateFilePathForK8sObject(baseDir, kind, name, ns, cat, "log")
+		err := common.SaveFile(filePath, conLog.GetContent(false))
+
+		if err != nil {
+			logger.Error("Failed to save container log", zap.String("file", filePath), zap.Error(err))
+		}
+		logger.Info("successfully saved container log", zap.String("path", filePath))
+	}
 }
 
 // Changed implements IResourceDetail.
