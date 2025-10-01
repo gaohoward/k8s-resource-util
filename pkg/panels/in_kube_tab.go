@@ -78,6 +78,7 @@ type InKubeTab struct {
 
 	widget       layout.Widget
 	InRefreshing bool
+	inQuery      bool
 }
 
 type DetailPanel struct {
@@ -706,6 +707,9 @@ func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
 	}
 
 	resultPanel := func(gtx layout.Context) layout.Dimensions {
+		if tab.inQuery {
+			return material.H6(th, "Querying ...").Layout(gtx)
+		}
 		result, _ := common.GetContextData(CONTEXT_KEY_API_SEARCH_RESULT)
 		if result == nil {
 			return material.H5(th, "No result.").Layout(gtx)
@@ -872,9 +876,15 @@ func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
 						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							if tab.exQueryButton.Clicked(gtx) {
-								result, _ := tab.Query()
-								resultList := getSearchResultList(th, result)
-								common.SetContextData(CONTEXT_KEY_API_SEARCH_RESULT, resultList, nil)
+								if !tab.inQuery {
+									tab.inQuery = true
+									go func() {
+										result, _ := tab.Query()
+										resultList := getSearchResultList(th, result)
+										common.SetContextData(CONTEXT_KEY_API_SEARCH_RESULT, resultList, nil)
+										tab.inQuery = false
+									}()
+								}
 							}
 
 							return layout.Inset{Top: 0, Bottom: 0, Left: 0, Right: unit.Dp(8)}.Layout(gtx,

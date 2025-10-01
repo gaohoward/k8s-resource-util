@@ -181,12 +181,12 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 				line.Font.Typeface = "monospace"
 
 				lineNum := material.Label(se.th, unit.Sp(se.textSize), fmt.Sprintf("%d", tot*10))
-				lineNum.TextSize = unit.Sp(se.textSize - 4)
-				lineNum.LineHeight = unit.Sp(se.textSize - 4)
+				lineNum.TextSize = unit.Sp(se.textSize - 3)
+				lineNum.LineHeight = unit.Sp(se.textSize - 2)
 				lineNum.Color = COLOR.Gray()
 				lineNum.Font.Typeface = "monospace"
 
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Start}.Layout(gtx,
+				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 						macro := op.Record(gtx.Ops)
 						numSize := lineNum.Layout(gtx)
