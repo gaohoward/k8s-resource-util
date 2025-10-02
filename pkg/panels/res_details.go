@@ -2,9 +2,12 @@ package panels
 
 import (
 	"bytes"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"sync"
+
+	"crypto/x509"
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
@@ -16,8 +19,11 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+	"github.com/smallstep/certinfo"
 	"go.uber.org/zap"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 )
 
@@ -534,5 +540,79 @@ func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, statu
 		result = append(result, NewPodLogDetail(item, th, status))
 	}
 
+	if item.GetKind() == "Secret" {
+		secret := &corev1.Secret{}
+		if runtime.DefaultUnstructuredConverter == nil {
+			logger.Debug("no default converter")
+		}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Object, &secret)
+		if err != nil {
+			logger.Warn("failed to conver unstructured to secret", zap.Any("err", err))
+		}
+
+		if secret.Type == corev1.SecretTypeTLS {
+			result = append(result, NewSecretTlsDetail(secret, th, item))
+		}
+	}
+
 	return result
+}
+
+func NewSecretTlsDetail(secret *corev1.Secret, th *material.Theme, item *unstructured.Unstructured) *SecretTlsDetail {
+	sd := &SecretTlsDetail{
+		ResourceDetail: NewDetail(th, "cert", item),
+		Secret:         secret,
+		content:        "",
+	}
+
+	sd.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil)
+
+	sd.contentEditor.SetText(sd.getCertContent())
+
+	return sd
+}
+
+type SecretTlsDetail struct {
+	*ResourceDetail
+	Secret        *corev1.Secret
+	contentEditor *common.ReadOnlyEditor
+	content       string
+}
+
+func (s *SecretTlsDetail) getCertContent() *string {
+	if s.content == "" {
+		if cert, ok := s.Secret.Data["tls.crt"]; ok {
+			certBlock, _ := pem.Decode(cert)
+			if certBlock != nil {
+				cert, err := x509.ParseCertificate(certBlock.Bytes)
+				if err != nil {
+					s.content = fmt.Sprintf("Failed to parse certificate: %v", err)
+				} else {
+					result, err := certinfo.CertificateText(cert)
+					if err != nil {
+						s.content = fmt.Sprintf("Failed to get certificate text: %v", err)
+					} else {
+						s.content = result
+					}
+				}
+			} else {
+				s.content = "Failed to decode PEM block"
+			}
+		}
+	}
+	return &s.content
+}
+
+func (s *SecretTlsDetail) Changed() bool {
+	return false
+}
+
+// GetContent implements common.IResourceDetail.
+func (s *SecretTlsDetail) GetContent() layout.Widget {
+	return s.contentEditor.Layout
+}
+
+// Save implements common.IResourceDetail.
+func (s *SecretTlsDetail) Save(baseDir string, kind string, name string, ns string) {
+	return
 }
