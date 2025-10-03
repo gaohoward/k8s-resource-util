@@ -5,6 +5,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 
 	"crypto/x509"
@@ -553,9 +554,54 @@ func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, statu
 		if secret.Type == corev1.SecretTypeTLS {
 			result = append(result, NewSecretTlsDetail(secret, th, item))
 		}
+
+		if len(secret.Data) > 0 {
+			result = append(result, NewSecretDataDetail(secret, th, item))
+		}
 	}
 
 	return result
+}
+
+func NewSecretDataDetail(secret *corev1.Secret, th *material.Theme, item *unstructured.Unstructured) *SecretDataDetail {
+	sdd := &SecretDataDetail{
+		ResourceDetail: NewDetail(th, "data", item),
+		Secret:         secret,
+	}
+
+	sdd.editor = common.NewReadOnlyEditor(th, "data", 16, nil)
+
+	sdd.editor.SetText(sdd.getDecodedData())
+
+	return sdd
+}
+
+type SecretDataDetail struct {
+	*ResourceDetail
+	Secret *corev1.Secret
+	editor *common.ReadOnlyEditor
+}
+
+// Changed implements common.IResourceDetail.
+func (sdd *SecretDataDetail) Changed() bool {
+	return false
+}
+
+func (sdd *SecretDataDetail) GetContent() layout.Widget {
+	return sdd.editor.Layout
+}
+
+// Save implements common.IResourceDetail.
+func (sdd *SecretDataDetail) Save(baseDir string, kind string, name string, ns string) {
+}
+
+func (sdd *SecretDataDetail) getDecodedData() *string {
+	builder := strings.Builder{}
+	for k, v := range sdd.Secret.Data {
+		builder.WriteString(fmt.Sprintf("%s:\n%s\n", k, string(v)))
+	}
+	result := builder.String()
+	return &result
 }
 
 func NewSecretTlsDetail(secret *corev1.Secret, th *material.Theme, item *unstructured.Unstructured) *SecretTlsDetail {
