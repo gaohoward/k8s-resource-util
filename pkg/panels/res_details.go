@@ -21,6 +21,7 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"github.com/smallstep/certinfo"
+	om "github.com/wk8/go-ordered-map/v2"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -546,7 +547,7 @@ func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, statu
 		if runtime.DefaultUnstructuredConverter == nil {
 			logger.Debug("no default converter")
 		}
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Object, &secret)
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Object, secret)
 		if err != nil {
 			logger.Warn("failed to conver unstructured to secret", zap.Any("err", err))
 		}
@@ -560,7 +561,90 @@ func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, statu
 		}
 	}
 
+	if item.GetKind() == "ConfigMap" {
+		configMap := &corev1.ConfigMap{}
+		if runtime.DefaultUnstructuredConverter == nil {
+			logger.Debug("no default converter")
+		}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(item.Object, configMap)
+		if err != nil {
+			logger.Warn("failed to conver unstructured to configmap", zap.Any("err", err))
+		}
+
+		if configMap.Data != nil {
+			for _, v := range configMap.Data {
+				if strings.HasPrefix(v, "-----BEGIN CERTIFICATE-----") {
+					result = append(result, NewConfigMapCertDetail(configMap, th, item))
+					break
+				}
+			}
+		}
+	}
+
 	return result
+}
+
+func NewConfigMapCertDetail(cm *corev1.ConfigMap, th *material.Theme, item *unstructured.Unstructured) *ConfigMapCertDetail {
+	cmcd := &ConfigMapCertDetail{
+		ResourceDetail: NewDetail(th, "cert", item),
+		configMap:      cm,
+	}
+
+	cmcd.editor = common.NewReadOnlyEditor(th, "cert", 16, nil)
+
+	cmcd.editor.SetText(cmcd.getCertContent())
+
+	return cmcd
+}
+
+type ConfigMapCertDetail struct {
+	*ResourceDetail
+	configMap *corev1.ConfigMap
+	editor    *common.ReadOnlyEditor
+}
+
+// Changed implements common.IResourceDetail.
+func (cmcd *ConfigMapCertDetail) Changed() bool {
+	return false
+}
+
+// GetContent implements common.IResourceDetail.
+func (cmcd *ConfigMapCertDetail) GetContent() layout.Widget {
+	return cmcd.editor.Layout
+}
+
+// Save implements common.IResourceDetail.
+func (cmcd *ConfigMapCertDetail) Save(baseDir string, kind string, name string, ns string) {
+}
+
+func (cmcd *ConfigMapCertDetail) getCertContent() *string {
+	certMap := om.New[string, []*x509.Certificate]()
+	for k, v := range cmcd.configMap.Data {
+		if strings.HasPrefix(v, "-----BEGIN CERTIFICATE-----") {
+			//possible candidate
+			certList, err := ParseCerts([]byte(v))
+			if err != nil {
+				continue
+			}
+			certMap.Set(k, certList)
+		}
+	}
+	builder := strings.Builder{}
+	for pair := certMap.Oldest(); pair != nil; pair = pair.Next() {
+		builder.WriteString(pair.Key)
+		builder.WriteString(":\n")
+		total := len(pair.Value)
+		for i, c := range pair.Value {
+			certText, err := certinfo.CertificateText(c)
+			if err != nil {
+				builder.WriteString(fmt.Sprintf("- [%d/%d] Failed to get certificate text: %v\n", i+1, total, err))
+			} else {
+				builder.WriteString(fmt.Sprintf("- [%d/%d] %s\n", i+1, total, certText))
+			}
+		}
+	}
+	result := builder.String()
+	return &result
 }
 
 func NewSecretDataDetail(secret *corev1.Secret, th *material.Theme, item *unstructured.Unstructured) *SecretDataDetail {
@@ -625,20 +709,26 @@ type SecretTlsDetail struct {
 	content       string
 }
 
+func ParseCerts(certData []byte) ([]*x509.Certificate, error) {
+	var certList = make([]*x509.Certificate, 0)
+	certBlock, rest := pem.Decode(certData)
+	for certBlock != nil {
+		cert, err := x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse certificate: %v", err)
+		}
+		certList = append(certList, cert)
+		certBlock, rest = pem.Decode(rest)
+	}
+	return certList, nil
+}
+
 func (s *SecretTlsDetail) getCertContent() *string {
 	if s.content == "" {
 		if cert, ok := s.Secret.Data["tls.crt"]; ok {
-			certBlock, rest := pem.Decode(cert)
-			var certList = make([]*x509.Certificate, 0)
-			for certBlock != nil {
-				cert, err := x509.ParseCertificate(certBlock.Bytes)
-				if err != nil {
-					s.content = fmt.Sprintf("Failed to parse certificate: %v", err)
-					break
-				} else {
-					certList = append(certList, cert)
-				}
-				certBlock, rest = pem.Decode(rest)
+			certList, err := ParseCerts(cert)
+			if err != nil {
+				s.content = fmt.Sprintf("Failed to parse certificate: %v\n", err)
 			}
 			totalCerts := len(certList)
 			var result string
@@ -651,7 +741,7 @@ func (s *SecretTlsDetail) getCertContent() *string {
 					result += certText + "\n"
 				}
 			}
-			s.content = result
+			s.content += result
 		} else {
 			s.content = "No cert data"
 		}
@@ -670,5 +760,4 @@ func (s *SecretTlsDetail) GetContent() layout.Widget {
 
 // Save implements common.IResourceDetail.
 func (s *SecretTlsDetail) Save(baseDir string, kind string, name string, ns string) {
-	return
 }
