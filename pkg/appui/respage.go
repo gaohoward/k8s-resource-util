@@ -544,7 +544,7 @@ func (rp *ResourcePage) Layout(gtx layout.Context, th *material.Theme) layout.Di
 			}()
 		}
 		if rp.editorBtnSave.Clicked(gtx) {
-			rp.SaveCurrent()
+			rp.SaveCurrent(gtx)
 		}
 		// The editor area
 		if rp.current == nil || rp.activeResources.Size() == 0 {
@@ -757,8 +757,18 @@ func (rp *ResourcePage) DeployResource(current common.Resource) error {
 	return nil
 }
 
-func (rp *ResourcePage) SaveCurrent() {
+func (rp *ResourcePage) SaveCurrent(gtx layout.Context) {
+
 	if rp.current != nil {
+
+		// update before saving
+		for {
+			_, ok := rp.crPanel.Update(gtx)
+			if !ok {
+				break
+			}
+		}
+
 		rp.current.SetCR(rp.crPanel.Text())
 		if rp.current.GetName() == "" {
 			if inst, ok := rp.current.(*common.ResourceInstance); ok {
@@ -769,6 +779,8 @@ func (rp *ResourcePage) SaveCurrent() {
 		} else {
 			rp.resourceManager.SaveResource(rp.current.GetId())
 		}
+	} else {
+		logger.Warn("current is nil while saving content!")
 	}
 }
 
