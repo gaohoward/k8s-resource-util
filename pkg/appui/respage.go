@@ -539,6 +539,7 @@ func (rp *ResourcePage) Layout(gtx layout.Context, th *material.Theme) layout.Di
 	var crEditorWidget layout.Widget = func(gtx layout.Context) layout.Dimensions {
 
 		if rp.editorBtnDeploy.Clicked(gtx) {
+			rp.SaveCurrent(gtx)
 			go func() {
 				rp.DeployResource(rp.current)
 			}()
