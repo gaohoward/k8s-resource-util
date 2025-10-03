@@ -628,22 +628,32 @@ type SecretTlsDetail struct {
 func (s *SecretTlsDetail) getCertContent() *string {
 	if s.content == "" {
 		if cert, ok := s.Secret.Data["tls.crt"]; ok {
-			certBlock, _ := pem.Decode(cert)
-			if certBlock != nil {
+			certBlock, rest := pem.Decode(cert)
+			var certList = make([]*x509.Certificate, 0)
+			for certBlock != nil {
 				cert, err := x509.ParseCertificate(certBlock.Bytes)
 				if err != nil {
 					s.content = fmt.Sprintf("Failed to parse certificate: %v", err)
+					break
 				} else {
-					result, err := certinfo.CertificateText(cert)
-					if err != nil {
-						s.content = fmt.Sprintf("Failed to get certificate text: %v", err)
-					} else {
-						s.content = result
-					}
+					certList = append(certList, cert)
 				}
-			} else {
-				s.content = "Failed to decode PEM block"
+				certBlock, rest = pem.Decode(rest)
 			}
+			totalCerts := len(certList)
+			var result string
+			for i, cert := range certList {
+				certText, err := certinfo.CertificateText(cert)
+				if err != nil {
+					result += fmt.Sprintf("Failed to get certificate text: %v\n", err)
+				} else {
+					result += fmt.Sprintf("-[%d/%d]-\n", i+1, totalCerts)
+					result += certText + "\n"
+				}
+			}
+			s.content = result
+		} else {
+			s.content = "No cert data"
 		}
 	}
 	return &s.content
