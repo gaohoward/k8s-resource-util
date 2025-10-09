@@ -1,6 +1,6 @@
 .PHONY: generate
 
-all: build
+all: buildonly
 
 generate:
 	@echo "generate"

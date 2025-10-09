@@ -174,7 +174,12 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 			return listStyle.Layout(gtx, tot, func(gtx layout.Context, index int) layout.Dimensions {
-				line := material.Label(se.th, unit.Sp(se.textSize), se.content[index])
+				// only show up to 1024 chars
+				lineContent := se.content[index]
+				if len(lineContent) > 1024 {
+					lineContent = lineContent[:1024]
+				}
+				line := material.Label(se.th, unit.Sp(se.textSize), lineContent)
 				line.TextSize = unit.Sp(se.textSize)
 				line.LineHeight = unit.Sp(se.textSize)
 				line.MaxLines = 3
@@ -215,6 +220,9 @@ func (se *ReadOnlyEditor) SetText(text *string) {
 	se.text = text
 
 	scanner := bufio.NewScanner(strings.NewReader(*text))
+	if len(*text) > bufio.MaxScanTokenSize {
+		scanner.Buffer(make([]byte, len(*text)), len(*text))
+	}
 	se.content = make([]string, 0)
 	for scanner.Scan() {
 		se.content = append(se.content, scanner.Text())
