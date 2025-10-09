@@ -360,3 +360,14 @@ func SaveFile(filePath string, content *string) error {
 	}
 	return os.WriteFile(filePath, []byte(*content), 0644)
 }
+
+func MarshalYaml(item *unstructured.Unstructured) (string, error) {
+
+	bytes, err := yaml.Marshal(item)
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(bytes), err
+}

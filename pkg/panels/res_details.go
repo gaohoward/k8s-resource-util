@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/yaml"
 )
 
 type ResourceDetail struct {
@@ -143,11 +142,13 @@ func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) common.I
 	d := &YamlDetail{
 		ResourceDetail: NewDetail(th, "yaml", item),
 	}
-	bytes, err := yaml.Marshal(item)
+
+	yamlStr, err := common.MarshalYaml(item)
+
 	if err != nil {
 		d.yamlContent = err.Error()
 	} else {
-		d.yamlContent = string(bytes)
+		d.yamlContent = yamlStr
 	}
 
 	d.ymlEditor = common.NewReadOnlyEditor(th, "Yaml", 16, nil)
