@@ -18,10 +18,10 @@ import (
 	"gioui.org/unit"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/yaml"
 )
 
 var logger *zap.Logger

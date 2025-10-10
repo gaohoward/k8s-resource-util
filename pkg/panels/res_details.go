@@ -463,7 +463,7 @@ func (r *ReloadLogAction) GetClickable() *widget.Clickable {
 }
 
 // GetMenuOption implements common.MenuAction.
-func (r *ReloadLogAction) GetMenuOption() func(gtx layout.Context) layout.Dimensions {
+func (r *ReloadLogAction) GetMenuOption(th *material.Theme) func(gtx layout.Context) layout.Dimensions {
 	return r.MenuFunc
 }
 

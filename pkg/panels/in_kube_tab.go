@@ -82,8 +82,7 @@ type InKubeTab struct {
 }
 
 type DetailPanel struct {
-	detailContent layout.Widget
-	owner         common.IResourceDetail
+	owner common.IResourceDetail
 }
 
 func (t *InKubeTab) Query() ([]*unstructured.UnstructuredList, error) {
