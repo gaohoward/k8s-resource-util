@@ -18,10 +18,11 @@ import (
 	"gioui.org/unit"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/yaml"
+	k8syaml "sigs.k8s.io/yaml"
 )
 
 var logger *zap.Logger
@@ -363,7 +364,7 @@ func SaveFile(filePath string, content *string) error {
 
 func MarshalYaml(item *unstructured.Unstructured) (string, error) {
 
-	bytes, err := yaml.Marshal(item)
+	bytes, err := k8syaml.Marshal(item)
 
 	if err != nil {
 		return "", err
