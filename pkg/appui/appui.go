@@ -166,23 +166,10 @@ const (
 type AboutPanel struct {
 }
 
-func GetAboutWidth(gtx layout.Context, th *material.Theme) layout.Dimensions {
-
-	macro := op.Record(gtx.Ops)
-	label := material.Body1(th, APP_INTRO)
-	label.TextSize = unit.Sp(16)
-	label.Font.Weight = font.Bold
-	size := label.Layout(gtx)
-	macro.Stop()
-
-	return size
-
-}
-
 func (a *AboutPanel) Layout(gtx layout.Context, th *material.Theme, isForInit bool) layout.Dimensions {
 
 	label := material.Body1(th, APP_INTRO)
-	size := GetAboutWidth(gtx, th)
+	size := common.GetAboutWidth(gtx, th, APP_INTRO)
 
 	childrenSize := 3
 	if isForInit {
@@ -236,7 +223,7 @@ func (a *AboutPanel) Layout(gtx layout.Context, th *material.Theme, isForInit bo
 
 			progressBar := material.ProgressBar(th, progress)
 			progressBar.Height = unit.Dp(6)
-			gtx.Constraints.Max.X = GetAboutWidth(gtx, th).Size.X
+			gtx.Constraints.Max.X = common.GetAboutWidth(gtx, th, APP_INTRO).Size.X
 			if progressBar.Progress == 0.0 {
 				progressBar.Color = th.ContrastFg
 			} else {

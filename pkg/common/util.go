@@ -12,10 +12,13 @@ import (
 
 	"gaohoward.tools/k8s/resutil/pkg/config"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
+	"gioui.org/font"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget/material"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -371,4 +374,17 @@ func MarshalYaml(item *unstructured.Unstructured) (string, error) {
 	}
 
 	return string(bytes), err
+}
+
+func GetAboutWidth(gtx layout.Context, th *material.Theme, headline string) layout.Dimensions {
+
+	macro := op.Record(gtx.Ops)
+	label := material.Body1(th, headline)
+	label.TextSize = unit.Sp(16)
+	label.Font.Weight = font.Bold
+	size := label.Layout(gtx)
+	macro.Stop()
+
+	return size
+
 }
