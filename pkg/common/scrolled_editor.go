@@ -38,7 +38,7 @@ func (se *ReadOnlyEditor) PasteContent() *string {
 	builder := strings.Builder{}
 	tot := len(se.selectedLines)
 	for i, line := range se.selectedLines {
-		builder.WriteString(line.line.Text)
+		builder.WriteString(*line.content)
 		if i < tot-1 {
 			builder.WriteString("\n")
 		}
@@ -112,12 +112,34 @@ func (sma *SaveMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) e
 	return nil
 }
 
+type SaveSelectionMenuAction struct {
+	EditorMenuBase
+}
+
+func (sma *SaveSelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
+	go func() {
+		writer, err := GetExplorer().CreateFile("selection_unnamed")
+		if err != nil {
+			logger.Info("failed to save file", zap.Error(err))
+			return
+		}
+		defer writer.Close()
+
+		for _, liner := range editor.selectedLines {
+			writer.Write([]byte(*liner.content + "\n"))
+		}
+	}()
+
+	return nil
+}
+
 type CopySelectionMenuAction struct {
 	EditorMenuBase
 }
 
 func (sma *CopySelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
 	Copy(editor)
+	gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(*editor.PasteContent()))})
 	return nil
 }
 
@@ -151,6 +173,16 @@ func NewCopySelectionMenuAction() *CopySelectionMenuAction {
 	return copySelAct
 }
 
+func NewSaveSelectionMenuAction() *SaveSelectionMenuAction {
+	saveSelAct := &SaveSelectionMenuAction{
+		EditorMenuBase: EditorMenuBase{
+			Name: "Save Selection",
+			icon: graphics.SaveIcon,
+		},
+	}
+	return saveSelAct
+}
+
 func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []MenuAction) *ReadOnlyEditor {
 	se := &ReadOnlyEditor{
 		th:              th,
@@ -173,6 +205,9 @@ func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []
 
 	copySelAct := NewCopySelectionMenuAction()
 	allActs = append(allActs, copySelAct)
+
+	saveSelAct := NewSaveSelectionMenuAction()
+	allActs = append(allActs, saveSelAct)
 
 	allActs = append(allActs, actions...)
 
