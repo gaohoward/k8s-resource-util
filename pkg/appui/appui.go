@@ -247,6 +247,7 @@ func (appUi *AppUI) Init() []error {
 
 	appUi.RefreshCh = make(chan int, 1)
 	appUi.ForceUpdate = false
+	// opentype.Parse()
 	appUi.theme.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
 	appUi.resourceNavigator.init(appUi.theme)
 

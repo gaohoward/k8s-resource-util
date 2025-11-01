@@ -469,24 +469,28 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			resDetails := tab.currentResultItem.GetDetails(gtx, th)
+			collectKeyPressed := false
 			for {
 				_, ok := gtx.Event(key.Filter{
 					Required: key.ModCtrl,
 					Name:     "Z",
 				})
 				if ok {
-					if len(resDetails) > 0 {
-						if baseDir, err := config.GetResourceDetailsDir(); err == nil {
-							for _, detail := range resDetails {
-								go detail.Save(baseDir, tab.currentResultItem.item.GetKind(), tab.currentResultItem.item.GetName(), tab.currentResultItem.item.GetNamespace())
-							}
-						} else {
-							logger.Info("Failed to get base dir, collection skipped")
-						}
-						break
-					}
+					collectKeyPressed = true
 				} else {
 					break
+				}
+			}
+
+			if collectKeyPressed {
+				if len(resDetails) > 0 {
+					if baseDir, err := config.GetResourceDetailsDir(); err == nil {
+						for _, detail := range resDetails {
+							go detail.Save(baseDir, tab.currentResultItem.item.GetKind(), tab.currentResultItem.item.GetName(), tab.currentResultItem.item.GetNamespace())
+						}
+					} else {
+						logger.Info("Failed to get base dir, collection skipped")
+					}
 				}
 			}
 
