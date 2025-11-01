@@ -6,6 +6,7 @@ import (
 	"image"
 	"io"
 	"strings"
+	"sync"
 
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
 	"gioui.org/io/clipboard"
@@ -15,22 +16,114 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
+
+type Filter struct {
+	lock            sync.RWMutex
+	filterField     component.TextField
+	originalContent []*Liner
+	previousWork    []*Liner
+	editorId        string
+}
+
+func (f *Filter) SetOriginalContent(content []*Liner) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	f.originalContent = content
+}
+
+func NewFilter(original []*Liner, editorId string) *Filter {
+	filter := &Filter{
+		filterField:     component.TextField{},
+		originalContent: original,
+		previousWork:    make([]*Liner, 0),
+		editorId:        editorId,
+	}
+	filter.filterField.SingleLine = true
+	filter.filterField.LineHeight = unit.Sp(14)
+
+	if filter.originalContent == nil {
+		filter.originalContent = make([]*Liner, 0)
+	}
+
+	return filter
+}
+
+func (f *Filter) GetFiltered() []*Liner {
+	f.lock.RLock()
+	defer f.lock.RUnlock()
+
+	if f.filterField.Editor.Text() == "" {
+		return f.originalContent
+	}
+	return f.previousWork
+}
+
+func (f *Filter) filterContent() {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	filterText := f.filterField.Text()
+
+	if filterText != "" {
+		result := make([]*Liner, 0)
+		count := 0
+		for _, liner := range f.originalContent {
+			if liner.Match(filterText) {
+				count++
+				result = append(result, liner)
+			}
+		}
+		f.previousWork = result
+		SetContextBool(f.editorId, true, nil)
+	}
+}
+
+func (f *Filter) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	changed := false
+	for {
+		evt, ok := f.filterField.Editor.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, isChange := evt.(widget.ChangeEvent); isChange {
+			changed = true
+		}
+	}
+
+	if changed {
+		go f.filterContent()
+	}
+
+	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return material.Label(th, unit.Sp(14), "Filter:").Layout(gtx)
+		}),
+		layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+			return f.filterField.Layout(gtx, th, "")
+		}),
+	)
+}
 
 // as editors doesn't have scroll bar support
 // we created this 'editor' using a list
 type ReadOnlyEditor struct {
-	th       *material.Theme
-	list     widget.List
-	content  []*Liner
-	textSize int
-	text     *string
+	id            string
+	th            *material.Theme
+	list          widget.List
+	originContent []*Liner
+	textSize      int
+	text          *string
 
 	menuState       component.MenuState
 	menuContextArea component.ContextArea
 	customActionMap map[string]MenuAction
 	selectedLines   []*Liner
+
+	filter *Filter
 }
 
 // PasteContent implements ClipboardHandler.
@@ -104,7 +197,7 @@ func (sma *SaveMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) e
 		}
 		defer writer.Close()
 
-		for _, liner := range editor.content {
+		for _, liner := range editor.originContent {
 			writer.Write([]byte(liner.line.Text + "\n"))
 		}
 	}()
@@ -185,11 +278,14 @@ func NewSaveSelectionMenuAction() *SaveSelectionMenuAction {
 
 func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []MenuAction) *ReadOnlyEditor {
 	se := &ReadOnlyEditor{
+		id:              uuid.New().String(),
 		th:              th,
 		textSize:        textSize,
 		customActionMap: make(map[string]MenuAction),
 		selectedLines:   make([]*Liner, 0),
 	}
+	se.filter = NewFilter(nil, se.id)
+	RegisterContext(se.id, false, true)
 
 	se.list.Axis = layout.Vertical
 
@@ -228,6 +324,10 @@ type Liner struct {
 	lineNumber material.LabelStyle
 	clickable  widget.Clickable
 	isSelected bool
+}
+
+func (l *Liner) Match(filterText string) bool {
+	return strings.Contains(*l.content, filterText)
 }
 
 func (l *Liner) Clicked() bool {
@@ -298,32 +398,51 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 	}
 
 	listStyle := material.List(se.th, &se.list)
-	tot := len(se.content)
+	content := se.GetContent()
+	tot := len(content)
+
+	filterPart := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		return se.LayoutFilter(gtx)
+	})
+
+	contentPart := layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+
+		lineNumberWidth := -1
+		return listStyle.Layout(gtx, tot, func(gtx layout.Context, index int) layout.Dimensions {
+
+			liner := content[index]
+
+			if liner.clickable.Clicked(gtx) {
+				liner.Clicked()
+				se.updateSelections(liner)
+			}
+
+			if lineNumberWidth == -1 {
+				liner.lineNumber.Text = fmt.Sprintf("%d", len(content)*10)
+				macro := op.Record(gtx.Ops)
+				numSize := liner.lineNumber.Layout(gtx)
+				macro.Stop()
+				lineNumberWidth = numSize.Size.X
+			}
+
+			return liner.Layout(gtx, lineNumberWidth, index)
+
+		})
+	})
 
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 
-			lineNumberWidth := -1
-			return listStyle.Layout(gtx, tot, func(gtx layout.Context, index int) layout.Dimensions {
+			if len(se.originContent) == 0 {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					contentPart,
+				)
+			}
 
-				liner := se.content[index]
-
-				if liner.clickable.Clicked(gtx) {
-					liner.Clicked()
-					se.updateSelections(liner)
-				}
-
-				if lineNumberWidth == -1 {
-					liner.lineNumber.Text = fmt.Sprintf("%d", len(se.content)*10)
-					macro := op.Record(gtx.Ops)
-					numSize := liner.lineNumber.Layout(gtx)
-					macro.Stop()
-					lineNumberWidth = numSize.Size.X
-				}
-
-				return liner.Layout(gtx, lineNumberWidth, index)
-
-			})
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				filterPart,
+				contentPart,
+			)
 		}),
 		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
 			return se.menuContextArea.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
@@ -332,6 +451,14 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 			})
 		}),
 	)
+}
+
+func (se *ReadOnlyEditor) LayoutFilter(gtx layout.Context) layout.Dimensions {
+	return se.filter.Layout(gtx, se.th)
+}
+
+func (se *ReadOnlyEditor) GetContent() []*Liner {
+	return se.filter.GetFiltered()
 }
 
 func (se *ReadOnlyEditor) updateSelections(liner *Liner) {
@@ -358,15 +485,17 @@ func (se *ReadOnlyEditor) SetText(text *string) {
 	if len(*text) > bufio.MaxScanTokenSize {
 		scanner.Buffer(make([]byte, len(*text)), len(*text))
 	}
-	se.content = make([]*Liner, 0)
+	se.originContent = make([]*Liner, 0)
 	for scanner.Scan() {
 		line := scanner.Text()
-		se.content = append(se.content, se.NewLiner(&line))
+		liner := se.NewLiner(&line)
+		se.originContent = append(se.originContent, liner)
 	}
 	if err := scanner.Err(); err != nil {
 		msg := err.Error()
-		se.content = append(se.content, se.NewLiner(&msg))
+		se.originContent = append(se.originContent, se.NewLiner(&msg))
 	}
+	se.filter.SetOriginalContent(se.originContent)
 }
 
 func (se *ReadOnlyEditor) SetHint(text *string) {

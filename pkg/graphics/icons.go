@@ -164,3 +164,8 @@ var HelpIcon *widget.Icon = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.ActionHelpOutline)
 	return icon
 }()
+
+var FilterIcon *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ContentFilterList)
+	return icon
+}()
