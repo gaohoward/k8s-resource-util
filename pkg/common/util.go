@@ -11,13 +11,17 @@ import (
 	"time"
 
 	"gaohoward.tools/k8s/resutil/pkg/config"
+	"gaohoward.tools/k8s/resutil/pkg/graphics"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
 	"gioui.org/font"
+	"gioui.org/io/event"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -387,4 +391,90 @@ func GetAboutWidth(gtx layout.Context, th *material.Theme, headline string) layo
 
 	return size
 
+}
+
+type SearchBar struct {
+	searchArea    widget.Editor
+	caseSensitive bool
+	ownerId       string
+}
+
+func (sb *SearchBar) IsCaseSensitive() bool {
+	return sb.caseSensitive
+}
+
+func NewSearchBar(ownerId string) *SearchBar {
+	return &SearchBar{
+		ownerId: ownerId,
+	}
+}
+
+func (sb *SearchBar) Changed(gtx layout.Context) bool {
+	changed := false
+	for {
+		evt, ok := sb.searchArea.Update(gtx)
+		if !ok {
+			break
+		}
+		if _, isChange := evt.(widget.ChangeEvent); isChange {
+			changed = true
+		}
+	}
+	if !changed {
+		if caseFlagChanged, _ := FlipContextBool(sb.ownerId); caseFlagChanged {
+			changed = true
+		}
+	}
+	return changed
+}
+
+func (sb *SearchBar) GetText() string {
+	return sb.searchArea.Text()
+}
+
+func (sb *SearchBar) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+	editor := material.Editor(th, &sb.searchArea, "search text")
+	editor.Font.Weight = font.Bold
+	editor.Color = COLOR.Blue
+
+	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+			return graphics.SearchIcon.Layout(gtx, COLOR.Blue)
+		}),
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+
+			iconColor := COLOR.LightGray
+
+			macro := op.Record(gtx.Ops)
+			size := graphics.CaseSensitiveIcon.Layout(gtx, iconColor)
+			macro.Stop()
+
+			r := image.Rectangle{Max: image.Point{X: size.Size.X, Y: size.Size.Y}}
+
+			area := clip.Rect(r).Push(gtx.Ops)
+
+			for {
+				_, ok := gtx.Event(pointer.Filter{
+					Target: sb,
+					Kinds:  pointer.Press,
+				})
+
+				if !ok {
+					break
+				}
+				sb.caseSensitive = !sb.caseSensitive
+				SetContextBool(sb.ownerId, true, nil)
+			}
+			event.Op(gtx.Ops, sb)
+			defer area.Pop()
+
+			if sb.caseSensitive {
+				iconColor = COLOR.Black
+				editor.Hint = "search text (case sensitive)"
+			}
+
+			return graphics.CaseSensitiveIcon.Layout(gtx, iconColor)
+		}),
+		layout.Flexed(1.0, editor.Layout),
+	)
 }

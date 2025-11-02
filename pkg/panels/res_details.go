@@ -54,10 +54,10 @@ func (r *ResourceDetail) GetClickable() *widget.Clickable {
 // GetLabel implements ResourceDetail.
 func (r *ResourceDetail) GetLabel() layout.Widget {
 	if r.isSelected {
-		r.label.Color = common.COLOR.Blue()
+		r.label.Color = common.COLOR.Blue
 		r.label.Font.Weight = font.Bold
 	} else {
-		r.label.Color = common.COLOR.Black()
+		r.label.Color = common.COLOR.Black
 		r.label.Font.Weight = font.Normal
 	}
 	return r.label.Layout
@@ -90,7 +90,7 @@ func NewDescribeDetail(th *material.Theme, item *unstructured.Unstructured) comm
 		ResourceDetail: NewDetail(th, "describe", item),
 	}
 
-	d.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil)
+	d.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil, true)
 
 	d.contentEditor.SetText(d.getDescribeContent())
 
@@ -151,7 +151,7 @@ func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) common.I
 		d.yamlContent = yamlStr
 	}
 
-	d.ymlEditor = common.NewReadOnlyEditor(th, "Yaml", 16, nil)
+	d.ymlEditor = common.NewReadOnlyEditor(th, "Yaml", 16, nil, true)
 	d.ymlEditor.SetText(&d.yamlContent)
 
 	return d
@@ -258,7 +258,7 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 					}
 					if p.currentLog == conLog {
 						conLog.label.Font.Weight = font.Bold
-						conLog.label.Color = common.COLOR.Blue()
+						conLog.label.Color = common.COLOR.Blue
 						dim := conLog.GetDividerWidth(gtx, containerTab)
 						size := dim.Size.X
 
@@ -276,7 +276,7 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 						})
 					}
 					conLog.label.Font.Weight = font.Normal
-					conLog.label.Color = common.COLOR.Black()
+					conLog.label.Color = common.COLOR.Black
 					return layout.Inset{Top: 0, Bottom: unit.Dp(6), Left: 0, Right: unit.Dp(4)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 						return containerTab(gtx, conLog)
 					})
@@ -514,10 +514,10 @@ func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) {
 	reloadLogAct := NewReloadLogAction(th, pd)
 	actions = append(actions, reloadLogAct)
 
-	pd.logEditor = common.NewReadOnlyEditor(th, "log", 16, actions)
+	pd.logEditor = common.NewReadOnlyEditor(th, "log", 16, actions, true)
 
 	pd.divider = component.Divider(th)
-	pd.divider.Fill = common.COLOR.Gray()
+	pd.divider.Fill = common.COLOR.Gray
 	pd.divider.Thickness = unit.Dp(1)
 	pd.divider.Inset.Top = 0
 	pd.divider.Bottom = unit.Dp(10)
@@ -591,7 +591,7 @@ func NewConfigMapCertDetail(cm *corev1.ConfigMap, th *material.Theme, item *unst
 		configMap:      cm,
 	}
 
-	cmcd.editor = common.NewReadOnlyEditor(th, "cert", 16, nil)
+	cmcd.editor = common.NewReadOnlyEditor(th, "cert", 16, nil, true)
 
 	cmcd.editor.SetText(cmcd.getCertContent())
 
@@ -654,7 +654,7 @@ func NewSecretDataDetail(secret *corev1.Secret, th *material.Theme, item *unstru
 		Secret:         secret,
 	}
 
-	sdd.editor = common.NewReadOnlyEditor(th, "data", 16, nil)
+	sdd.editor = common.NewReadOnlyEditor(th, "data", 16, nil, true)
 
 	sdd.editor.SetText(sdd.getDecodedData())
 
@@ -696,7 +696,7 @@ func NewSecretTlsDetail(secret *corev1.Secret, th *material.Theme, item *unstruc
 		content:        "",
 	}
 
-	sd.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil)
+	sd.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil, true)
 
 	sd.contentEditor.SetText(sd.getCertContent())
 

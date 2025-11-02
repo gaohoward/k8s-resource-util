@@ -169,3 +169,8 @@ var FilterIcon *widget.Icon = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.ContentFilterList)
 	return icon
 }()
+
+var CaseSensitiveIcon *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.EditorTextFields)
+	return icon
+}()

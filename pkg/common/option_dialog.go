@@ -120,7 +120,7 @@ func (od *OptionDialog) Layout(
 	children[0] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		titleLb := material.Label(th, unit.Sp(24), od.title)
 		titleLb.Font.Weight = font.Bold
-		titleLb.Color = COLOR.Blue()
+		titleLb.Color = COLOR.Blue
 
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
 			layout.Rigid(titleLb.Layout),

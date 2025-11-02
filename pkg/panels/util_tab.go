@@ -802,9 +802,9 @@ func LeafClickableLabel(gtx layout.Context, clickable *widget.Clickable, th *mat
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Max = image.Point{X: 16, Y: 16}
-			color := common.COLOR.Gray()
+			color := common.COLOR.Gray
 			if selected {
-				color = common.COLOR.Black()
+				color = common.COLOR.Black
 			}
 			return graphics.ResourceIcon.Layout(gtx, color)
 		}),

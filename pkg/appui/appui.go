@@ -181,7 +181,7 @@ func (a *AboutPanel) Layout(gtx layout.Context, th *material.Theme, isForInit bo
 		//title
 		titleLb := material.Label(th, unit.Sp(24), APP_TITLE)
 		titleLb.Font.Weight = font.Bold
-		titleLb.Color = common.COLOR.Blue()
+		titleLb.Color = common.COLOR.Blue
 
 		versionLb := material.Label(th, unit.Sp(14), VERSION)
 		versionLb.Font.Weight = font.Bold
@@ -227,7 +227,7 @@ func (a *AboutPanel) Layout(gtx layout.Context, th *material.Theme, isForInit bo
 			if progressBar.Progress == 0.0 {
 				progressBar.Color = th.ContrastFg
 			} else {
-				progressBar.Color = common.COLOR.Blue()
+				progressBar.Color = common.COLOR.Blue
 			}
 			return progressBar.Layout(gtx)
 		})
@@ -370,7 +370,7 @@ func (appUi *AppUI) getBottomBarComponents() []layout.FlexChild {
 				if appUi.progressBar.Progress == 0.0 {
 					appUi.progressBar.Color = appUi.theme.ContrastFg
 				} else {
-					appUi.progressBar.Color = common.COLOR.Blue()
+					appUi.progressBar.Color = common.COLOR.Blue
 				}
 				return appUi.progressBar.Layout(gtx)
 			}),

@@ -624,10 +624,10 @@ func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
 		}
 		editor := material.Editor(th, &tab.searchField, "search criteria")
 		editor.Font.Weight = font.Bold
-		editor.Color = common.COLOR.Blue()
+		editor.Color = common.COLOR.Blue
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return graphics.SearchIcon.Layout(gtx, common.COLOR.Blue())
+				return graphics.SearchIcon.Layout(gtx, common.COLOR.Blue)
 			}),
 			layout.Flexed(1.0, editor.Layout),
 		)

@@ -22,7 +22,7 @@ import (
 
 type Filter struct {
 	lock            sync.RWMutex
-	filterField     component.TextField
+	filterField     *SearchBar
 	originalContent []*Liner
 	previousWork    []*Liner
 	editorId        string
@@ -37,13 +37,10 @@ func (f *Filter) SetOriginalContent(content []*Liner) {
 
 func NewFilter(original []*Liner, editorId string) *Filter {
 	filter := &Filter{
-		filterField:     component.TextField{},
+		filterField:     NewSearchBar(editorId),
 		originalContent: original,
 		previousWork:    make([]*Liner, 0),
-		editorId:        editorId,
 	}
-	filter.filterField.SingleLine = true
-	filter.filterField.LineHeight = unit.Sp(14)
 
 	if filter.originalContent == nil {
 		filter.originalContent = make([]*Liner, 0)
@@ -56,7 +53,7 @@ func (f *Filter) GetFiltered() []*Liner {
 	f.lock.RLock()
 	defer f.lock.RUnlock()
 
-	if f.filterField.Editor.Text() == "" {
+	if f.filterField.GetText() == "" {
 		return f.originalContent
 	}
 	return f.previousWork
@@ -66,13 +63,13 @@ func (f *Filter) filterContent() {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
-	filterText := f.filterField.Text()
+	filterText := f.filterField.GetText()
 
 	if filterText != "" {
 		result := make([]*Liner, 0)
 		count := 0
 		for _, liner := range f.originalContent {
-			if liner.Match(filterText) {
+			if liner.Match(filterText, f.filterField.IsCaseSensitive()) {
 				count++
 				result = append(result, liner)
 			}
@@ -83,29 +80,14 @@ func (f *Filter) filterContent() {
 }
 
 func (f *Filter) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	changed := false
-	for {
-		evt, ok := f.filterField.Editor.Update(gtx)
-		if !ok {
-			break
-		}
-		if _, isChange := evt.(widget.ChangeEvent); isChange {
-			changed = true
-		}
-	}
+
+	changed := f.filterField.Changed(gtx)
 
 	if changed {
 		go f.filterContent()
 	}
 
-	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			return material.Label(th, unit.Sp(14), "Filter:").Layout(gtx)
-		}),
-		layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
-			return f.filterField.Layout(gtx, th, "")
-		}),
-	)
+	return f.filterField.Layout(gtx, th)
 }
 
 // as editors doesn't have scroll bar support
@@ -123,7 +105,8 @@ type ReadOnlyEditor struct {
 	customActionMap map[string]MenuAction
 	selectedLines   []*Liner
 
-	filter *Filter
+	filterOn bool
+	filter   *Filter
 }
 
 // PasteContent implements ClipboardHandler.
@@ -276,16 +259,20 @@ func NewSaveSelectionMenuAction() *SaveSelectionMenuAction {
 	return saveSelAct
 }
 
-func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []MenuAction) *ReadOnlyEditor {
+func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []MenuAction, useFilter bool) *ReadOnlyEditor {
 	se := &ReadOnlyEditor{
 		id:              uuid.New().String(),
 		th:              th,
 		textSize:        textSize,
 		customActionMap: make(map[string]MenuAction),
 		selectedLines:   make([]*Liner, 0),
+		filterOn:        useFilter,
 	}
-	se.filter = NewFilter(nil, se.id)
-	RegisterContext(se.id, false, true)
+
+	if useFilter {
+		se.filter = NewFilter(nil, se.id)
+		RegisterContext(se.id, false, true)
+	}
 
 	se.list.Axis = layout.Vertical
 
@@ -326,8 +313,11 @@ type Liner struct {
 	isSelected bool
 }
 
-func (l *Liner) Match(filterText string) bool {
-	return strings.Contains(*l.content, filterText)
+func (l *Liner) Match(filterText string, caseSensitive bool) bool {
+	if caseSensitive {
+		return strings.Contains(*l.content, filterText)
+	}
+	return strings.Contains(strings.ToLower(*l.content), strings.ToLower(filterText))
 }
 
 func (l *Liner) Clicked() bool {
@@ -338,11 +328,11 @@ func (l *Liner) Clicked() bool {
 func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dimensions {
 
 	if l.isSelected {
-		l.lineNumber.Color = COLOR.Black()
-		l.line.Color = COLOR.Blue()
+		l.lineNumber.Color = COLOR.Black
+		l.line.Color = COLOR.Blue
 	} else {
-		l.lineNumber.Color = COLOR.Gray()
-		l.line.Color = COLOR.Black()
+		l.lineNumber.Color = COLOR.LightGray
+		l.line.Color = COLOR.Black
 	}
 	l.lineNumber.Text = (fmt.Sprintf("%d", index+1))
 
@@ -373,7 +363,7 @@ func (se *ReadOnlyEditor) NewLiner(content *string) *Liner {
 	lineNumber := material.Label(se.th, unit.Sp(se.textSize), fmt.Sprintf("%d", 10))
 	lineNumber.TextSize = unit.Sp(se.textSize - 3)
 	lineNumber.LineHeight = unit.Sp(se.textSize - 2)
-	lineNumber.Color = COLOR.Gray()
+	lineNumber.Color = COLOR.LightGray
 	lineNumber.Font.Typeface = "monospace"
 
 	line := material.Label(se.th, unit.Sp(se.textSize), displayContent)
@@ -454,11 +444,17 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 }
 
 func (se *ReadOnlyEditor) LayoutFilter(gtx layout.Context) layout.Dimensions {
-	return se.filter.Layout(gtx, se.th)
+	if se.filterOn {
+		return se.filter.Layout(gtx, se.th)
+	}
+	return layout.Dimensions{}
 }
 
 func (se *ReadOnlyEditor) GetContent() []*Liner {
-	return se.filter.GetFiltered()
+	if se.filterOn {
+		return se.filter.GetFiltered()
+	}
+	return se.originContent
 }
 
 func (se *ReadOnlyEditor) updateSelections(liner *Liner) {
@@ -495,7 +491,9 @@ func (se *ReadOnlyEditor) SetText(text *string) {
 		msg := err.Error()
 		se.originContent = append(se.originContent, se.NewLiner(&msg))
 	}
-	se.filter.SetOriginalContent(se.originContent)
+	if se.filterOn {
+		se.filter.SetOriginalContent(se.originContent)
+	}
 }
 
 func (se *ReadOnlyEditor) SetHint(text *string) {

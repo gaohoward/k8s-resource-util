@@ -1275,34 +1275,34 @@ func NewStatusIcon(status StatusType, reason string, th *material.Theme) *Status
 	switch status {
 	case ContainerRunning:
 		icon = graphics.RunningIcon
-		co = COLOR.DarkGreen()
+		co = COLOR.DarkGreen
 	case ContainerTerminated:
 		icon = graphics.TerminatedIcon
-		co = COLOR.Blue()
+		co = COLOR.Blue
 	case ContainerTerminatedWithError:
 		icon = graphics.TerminatedIcon
-		co = COLOR.Red()
-		bg = COLOR.White()
+		co = COLOR.Red
+		bg = COLOR.White
 	case ContainerError:
 		icon = graphics.ErrorIcon
-		co = COLOR.Red()
-		bg = COLOR.White()
+		co = COLOR.Red
+		bg = COLOR.White
 	case ContainerUnknown:
 		icon = graphics.UnknownIcon
-		co = COLOR.Gray()
+		co = COLOR.Gray
 	case PodError:
 		icon = graphics.ErrorIcon
-		co = COLOR.Red()
-		bg = COLOR.White()
+		co = COLOR.Red
+		bg = COLOR.White
 	case PodUnknown:
 		icon = graphics.UnknownIcon
-		co = COLOR.Gray()
+		co = COLOR.Gray
 	case PodRunning:
 		icon = graphics.RunningIcon
-		co = COLOR.DarkGreen()
+		co = COLOR.DarkGreen
 	default:
 		icon = graphics.HelpIcon
-		co = COLOR.Gray()
+		co = COLOR.Gray
 	}
 
 	si := &StatusIcon{
@@ -1327,7 +1327,7 @@ func NewStatusIcon(status StatusType, reason string, th *material.Theme) *Status
 	}
 	si.button.Color = si.color
 	si.button.IconButtonStyle.Inset = layout.Inset{Top: 0, Bottom: 0, Left: 0, Right: 0}
-	si.button.Background = COLOR.White()
+	si.button.Background = COLOR.White
 
 	return si
 }
