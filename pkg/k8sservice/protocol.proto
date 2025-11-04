@@ -128,4 +128,5 @@ message DeployResourceReply {
     string name = 1;
     string namespace = 2;
     string err = 3;
+    string reply_json = 4;
 }

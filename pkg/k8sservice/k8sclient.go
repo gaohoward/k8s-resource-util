@@ -243,7 +243,7 @@ func (k *K8sClient) K8sObjectToYaml(obj runtime.Object) string {
 	return writer.String()
 }
 
-func (k *K8sClient) DeployResource(res *common.ResourceInstanceAction, targetNs string, appLogger *zap.Logger) (types.NamespacedName, error) {
+func (k *K8sClient) DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, *unstructured.Unstructured, error) {
 
 	finalNamespace := types.NamespacedName{
 		Name:      res.GetName(),
@@ -251,8 +251,8 @@ func (k *K8sClient) DeployResource(res *common.ResourceInstanceAction, targetNs 
 	}
 
 	if !k.IsValid() {
-		appLogger.Warn("k8s client is not set updid you have a cluster up and running?")
-		return finalNamespace, fmt.Errorf("no rest client")
+		logger.Warn("k8s client is not set updid you have a cluster up and running?")
+		return finalNamespace, nil, fmt.Errorf("no rest client")
 	}
 
 	obj := &unstructured.Unstructured{}
@@ -260,14 +260,14 @@ func (k *K8sClient) DeployResource(res *common.ResourceInstanceAction, targetNs 
 	_, gvk, err := dec.Decode([]byte(res.Instance.GetCR()), nil, obj)
 
 	if err != nil {
-		return finalNamespace, err
+		return finalNamespace, nil, err
 	}
 
 	mapping, err := k.RetrieveMapping(gvk.GroupKind(), gvk.Version, true)
 
 	if err != nil {
-		logger.Debug("failed to get mapping", zap.String("err", err.Error()))
-		return finalNamespace, err
+		logger.Info("failed to get mapping", zap.String("err", err.Error()))
+		return finalNamespace, nil, err
 	}
 	if obj.GetNamespace() == "" {
 		if targetNs != "" {
@@ -287,46 +287,54 @@ func (k *K8sClient) DeployResource(res *common.ResourceInstanceAction, targetNs 
 	} else {
 		// for cluster-wide resources
 		dr = k.dynClient.Resource(mapping.Resource)
+		obj.SetNamespace("")
 	}
 	data, err := json.Marshal(obj)
 	if err != nil {
-		return finalNamespace, err
+		return finalNamespace, nil, err
 	}
+
+	var finalResp *unstructured.Unstructured = nil
 
 	switch res.GetAction() {
 	case common.Create:
-		appLogger.Info("CREATE resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
-		if _, err := dr.Apply(context.TODO(), obj.GetName(), obj, v1.ApplyOptions{FieldManager: common.APP_NAME}); err != nil {
-			appLogger.Error("Failed to create resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
-			logger.Error("Failed to Create resource", zap.Error(err))
-			return finalNamespace, err
+		logger.Info("CREATE resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
+		if resp, err := dr.Apply(context.TODO(), obj.GetName(), obj, v1.ApplyOptions{FieldManager: common.APP_NAME}); err == nil {
+			finalResp = resp
+		} else if resp, err := dr.Create(context.TODO(), obj, v1.CreateOptions{}); err == nil {
+			// some resources like tokenreview only accept create word
+			// so try create if apply fails
+			finalResp = resp
+		} else {
+			logger.Error("Failed to create resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()), zap.Error(err))
+			return finalNamespace, nil, err
 		}
-		appLogger.Info("Resource created successfully", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
+		logger.Info("Resource created successfully", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
 	case common.Delete:
-		appLogger.Info("DELETE resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
+		logger.Info("DELETE resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
 		if err := dr.Delete(context.TODO(), obj.GetName(), v1.DeleteOptions{}); err != nil {
-			appLogger.Error("Failed to delete resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()), zap.Error(err))
 			logger.Error("Failed to delete resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()), zap.Error(err))
-			return finalNamespace, err
+			return finalNamespace, nil, err
 		}
-		appLogger.Info("Resource deleted successfully", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
+		logger.Info("Resource deleted successfully", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
 	case common.Update:
-		appLogger.Info("UPDATE resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
+		logger.Info("UPDATE resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
 		err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
 			// ApplyPatchType means server side apply
-			if _, err := dr.Patch(context.TODO(), obj.GetName(), types.ApplyPatchType, data, v1.PatchOptions{FieldManager: common.APP_NAME}); err != nil {
-				appLogger.Error("Failed to update resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
-				logger.Error("Failed to update resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()), zap.Error(err))
+			if resp, err := dr.Patch(context.TODO(), obj.GetName(), types.ApplyPatchType, data, v1.PatchOptions{FieldManager: common.APP_NAME}); err == nil {
+				finalResp = resp
+			} else {
+				logger.Error("Failed to update resource", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
 				return err
 			}
-			appLogger.Info("Resource updated successfully", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
+			logger.Info("Resource updated successfully", zap.String("name", obj.GetName()), zap.String("ns", obj.GetNamespace()))
 			return nil
 		})
 		if err != nil {
-			return finalNamespace, err
+			return finalNamespace, nil, err
 		}
 	}
-	return finalNamespace, nil
+	return finalNamespace, finalResp, nil
 }
 
 func (k *K8sClient) NewRestMapper() {

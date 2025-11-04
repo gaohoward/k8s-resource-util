@@ -2,6 +2,7 @@ package common
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
 	"image"
 	"io"
@@ -107,6 +108,11 @@ type ReadOnlyEditor struct {
 
 	filterOn bool
 	filter   *Filter
+}
+
+func (se *ReadOnlyEditor) Clear() {
+	empty := ""
+	se.SetText(&empty)
 }
 
 // PasteContent implements ClipboardHandler.
@@ -307,6 +313,11 @@ func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []
 
 type Liner struct {
 	content                 *string
+	extraContent            *string
+	extraClickable          widget.Clickable
+	extraLabel              material.LabelStyle
+	extraDialog             *TextDialog
+	showExtra               bool
 	lineLabel               material.LabelStyle
 	lineNumberLabel         material.LabelStyle
 	originalLineNumberLabel material.LabelStyle
@@ -338,41 +349,75 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 	}
 	l.lineNumberLabel.Text = (fmt.Sprintf("%d", index+1))
 
-	if l.originalLineIndex != index {
-		return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
-
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-
-					gtx.Constraints.Min.X = lineWidth
-
-					return l.lineNumberLabel.Layout(gtx)
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return l.originalLineNumberLabel.Layout(gtx)
-				}),
-				layout.Flexed(1.0, l.lineLabel.Layout),
-			)
-
-		})
+	if l.extraContent != nil {
+		if l.extraClickable.Clicked(gtx) {
+			l.showExtra = true
+		}
+		if l.showExtra {
+			return l.extraDialog.Layout(gtx)
+		}
 	}
 
-	return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
+	if l.originalLineIndex != index {
+		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+				return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
 
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-
-				gtx.Constraints.Min.X = lineWidth
-
-				return l.lineNumberLabel.Layout(gtx)
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							gtx.Constraints.Min.X = lineWidth
+							return l.lineNumberLabel.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return l.originalLineNumberLabel.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							return l.lineLabel.Layout(gtx)
+						}),
+					)
+				})
 			}),
-			layout.Flexed(1.0, l.lineLabel.Layout),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return material.Clickable(gtx, &l.extraClickable, func(gtx layout.Context) layout.Dimensions {
+					if l.extraContent != nil {
+						return l.extraLabel.Layout(gtx)
+					}
+					return layout.Dimensions{}
+				})
+			}),
 		)
+	}
 
-	})
+	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+		layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								gtx.Constraints.Min.X = lineWidth
+								return l.lineNumberLabel.Layout(gtx)
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								return l.lineLabel.Layout(gtx)
+							}),
+						)
+					})
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return material.Clickable(gtx, &l.extraClickable, func(gtx layout.Context) layout.Dimensions {
+						if l.extraContent != nil {
+							return l.extraLabel.Layout(gtx)
+						}
+						return layout.Dimensions{}
+					})
+				}),
+			)
+		}),
+	)
 }
 
-func (se *ReadOnlyEditor) NewLiner(content *string, index int) *Liner {
+func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *string) *Liner {
 
 	// only show up to 1024 chars
 	var displayContent string
@@ -401,13 +446,30 @@ func (se *ReadOnlyEditor) NewLiner(content *string, index int) *Liner {
 	line.MaxLines = 3
 	line.Font.Typeface = "monospace"
 
-	return &Liner{
+	extraLabel := material.Label(se.th, unit.Sp(se.textSize), "...")
+	extraLabel.TextSize = unit.Sp(se.textSize)
+	extraLabel.LineHeight = unit.Sp(se.textSize)
+	extraLabel.MaxLines = 1
+	extraLabel.Color = COLOR.Red
+	extraLabel.Font.Typeface = "monospace"
+
+	l := &Liner{
 		content:                 content,
+		extraContent:            extraContent,
 		lineLabel:               line,
 		lineNumberLabel:         lineNumber,
 		originalLineNumberLabel: originalLineNumber,
 		originalLineIndex:       index,
+		extraLabel:              extraLabel,
 	}
+
+	if l.extraContent != nil {
+		l.extraDialog = NewTextDialog(se.th, "content", "", *l.extraContent, func() {
+			l.showExtra = false
+		})
+	}
+
+	return l
 }
 
 func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
@@ -426,7 +488,7 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 		return se.LayoutFilter(gtx)
 	})
 
-	contentPart := layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+	contentPart := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 
 		lineNumberWidth := -1
 		return listStyle.Layout(gtx, tot, func(gtx layout.Context, index int) layout.Dimensions {
@@ -505,6 +567,47 @@ func (se *ReadOnlyEditor) updateSelections(liner *Liner) {
 	}
 }
 
+const begin_token = "[$X$["
+const end_token = "]$X$]"
+
+func MakeExtraFragment(original string) string {
+	encoded := base64.StdEncoding.EncodeToString([]byte(original))
+	return begin_token + encoded + end_token
+}
+
+// extra content goes to a button popup to make each line displayed
+// nicely while can carrying extra infomation
+// to include extra messages in a line
+// wrap it in an begin_token / end_token pair
+// currently only support one extra content at the end of line
+// so the original line must be of the following pattern
+// <message><begin_token><extra content base64><end_token> (so end_token is optional)
+// using base64 can bypass the newlines processing in the line
+func ParseLineContent(line *string) (*string, *string) {
+	var l, extra *string = nil, nil
+
+	beginIdx := strings.LastIndex(*line, begin_token)
+	if beginIdx != -1 {
+		line1 := (*line)[:beginIdx]
+
+		extra1 := (*line)[beginIdx+len(begin_token):]
+		endIdx := strings.LastIndex(extra1, end_token)
+		if endIdx != -1 {
+			extra1 = extra1[:endIdx]
+		}
+		l = &line1
+		if extra1 != "" {
+			decoded, _ := base64.StdEncoding.DecodeString(extra1)
+			extra1 = string(decoded)
+		}
+		extra = &extra1
+	} else {
+		l = line
+	}
+
+	return l, extra
+}
+
 func (se *ReadOnlyEditor) SetText(text *string) {
 	se.text = text
 
@@ -515,12 +618,13 @@ func (se *ReadOnlyEditor) SetText(text *string) {
 	se.originContent = make([]*Liner, 0)
 	for scanner.Scan() {
 		line := scanner.Text()
-		liner := se.NewLiner(&line, len(se.originContent))
+		ln, extra := ParseLineContent(&line)
+		liner := se.NewLiner(ln, len(se.originContent), extra)
 		se.originContent = append(se.originContent, liner)
 	}
 	if err := scanner.Err(); err != nil {
 		msg := err.Error()
-		se.originContent = append(se.originContent, se.NewLiner(&msg, len(se.originContent)))
+		se.originContent = append(se.originContent, se.NewLiner(&msg, len(se.originContent), nil))
 	}
 	if se.filterOn {
 		se.filter.SetOriginalContent(se.originContent)

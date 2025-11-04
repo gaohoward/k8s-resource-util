@@ -11,6 +11,7 @@ import (
 	_ "google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/protobuf/types/known/emptypb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
@@ -29,14 +30,24 @@ func (s *server) IsValid(ctx context.Context, req *emptypb.Empty) (*wrapperspb.B
 
 func (s *server) DeployResource(_ context.Context, resReq *DeployResourceRequest) (*DeployResourceReply, error) {
 	res := NewResourceInstanceAction(resReq)
-	nsn, err := s.client.DeployResource(res, resReq.TargetNs, logger)
+	nsn, r, err := s.client.DeployResource(res, resReq.TargetNs)
 	if err != nil {
 		return nil, err
+	}
+
+	rJson := ""
+	if r != nil {
+		if rJsonBytes, err := yaml.Marshal(*r); err != nil {
+			logger.Error("Failed to marshal resource", zap.Error(err))
+		} else {
+			rJson = string(rJsonBytes)
+		}
 	}
 
 	reply := &DeployResourceReply{
 		Name:      nsn.Name,
 		Namespace: nsn.Namespace,
+		ReplyJson: rJson,
 	}
 
 	return reply, nil

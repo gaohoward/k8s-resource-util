@@ -22,6 +22,7 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"go.uber.org/zap"
+	"gopkg.in/yaml.v3"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -738,7 +739,7 @@ func (rp *ResourcePage) DeployResource(current common.Resource) error {
 
 			for _, res := range orderedResourceToDeploy {
 				toDeploy := resourcesToDeploy[res]
-				if ns, err := rp.k8sClient.DeployResource(toDeploy, ""); err != nil {
+				if ns, reply, err := rp.k8sClient.DeployResource(toDeploy, ""); err != nil {
 					logger.Error("Failed to deploy resource", zap.Any("res", res), zap.Error(err))
 					task.Failed(err)
 					rp.deployedResources.Remove(currentId)
@@ -748,6 +749,18 @@ func (rp *ResourcePage) DeployResource(current common.Resource) error {
 					finalNs[toDeploy.Instance.GetId()] = ns
 					//update progress
 					task.Update("deployed " + toDeploy.GetName())
+					if reply != nil {
+
+						appLog.Info("Successfully deployed", zap.String("resource", toDeploy.GetName()))
+
+						jsonReply, err := yaml.Marshal(*reply)
+
+						if err != nil {
+							logger.Error("Failed to marshal reply", zap.Error(err))
+						} else {
+							appLog.Info("The reply", zap.String(logs.REPLY_CONTENT_KEY, string(jsonReply)))
+						}
+					}
 				}
 			}
 			task.Done()

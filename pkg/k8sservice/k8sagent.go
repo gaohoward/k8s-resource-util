@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/encoding/gzip"
 	"google.golang.org/protobuf/types/known/emptypb"
 	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
+	"gopkg.in/yaml.v3"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -31,7 +32,7 @@ var CACHE_KEY_API_RESOURCES = "api_resources"
 
 type K8sService interface {
 	IsValid() bool
-	DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, error)
+	DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, *unstructured.Unstructured, error)
 	GetClusterInfo() *common.ClusterInfo
 	GetAgent() string
 	// now the resource info no longer persisted (cached in mem only) for remote agent
@@ -47,7 +48,6 @@ type K8sService interface {
 
 type LocalK8sService struct {
 	localClient *K8sClient
-	appLogger   *zap.Logger
 }
 
 // GetDescribeFor implements K8sService.
@@ -67,8 +67,8 @@ func (l *LocalK8sService) GetCRDFor(resEntry *common.ApiResourceEntry) (string, 
 }
 
 // DeployResource implements K8sService.
-func (l *LocalK8sService) DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, error) {
-	return l.localClient.DeployResource(res, targetNs, l.appLogger)
+func (l *LocalK8sService) DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, *unstructured.Unstructured, error) {
+	return l.localClient.DeployResource(res, targetNs)
 }
 
 // FetchAllApiResources implements K8sService.
@@ -213,9 +213,9 @@ func (r *RemoteK8sService) GetCRDFor(resEntry *common.ApiResourceEntry) (string,
 }
 
 // DeployResource implements K8sService.
-func (r *RemoteK8sService) DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, error) {
+func (r *RemoteK8sService) DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, *unstructured.Unstructured, error) {
 	if r.Conn == nil {
-		return types.NamespacedName{}, fmt.Errorf("no connection")
+		return types.NamespacedName{}, nil, fmt.Errorf("no connection")
 	}
 
 	grpcClient := NewGrpcK8SServiceClient(r.Conn)
@@ -239,9 +239,19 @@ func (r *RemoteK8sService) DeployResource(res *common.ResourceInstanceAction, ta
 
 	reply, err := grpcClient.DeployResource(context.Background(), &request)
 	if err != nil {
-		return types.NamespacedName{}, err
+		return types.NamespacedName{}, nil, err
 	}
-	return types.NamespacedName{Name: reply.Name, Namespace: reply.Namespace}, nil
+
+	instance := &unstructured.Unstructured{}
+
+	if reply != nil {
+		err = yaml.Unmarshal([]byte(reply.ReplyJson), instance)
+		if err != nil {
+			logger.Info("error unmarshalling result", zap.Error(err))
+		}
+	}
+
+	return types.NamespacedName{Name: reply.Name, Namespace: reply.Namespace}, instance, nil
 }
 
 // FetchAllApiResources implements K8sService.
@@ -603,10 +613,9 @@ func NewRemoteK8sService(agentUrl string) *RemoteK8sService {
 	return service
 }
 
-func NewLocalK8sService(appLogger *zap.Logger) *LocalK8sService {
+func NewLocalK8sService() *LocalK8sService {
 	localService := &LocalK8sService{
 		localClient: internalClient,
-		appLogger:   appLogger,
 	}
 
 	return localService
@@ -622,7 +631,7 @@ func InitK8sService() {
 		k8sService = NewRemoteK8sService(agentUrl)
 	} else {
 		InitInternalK8sClient(&options.Options.Kubeconfig)
-		k8sService = NewLocalK8sService(logs.GetLogger(logs.IN_APP_LOGGER_NAME))
+		k8sService = NewLocalK8sService()
 	}
 }
 

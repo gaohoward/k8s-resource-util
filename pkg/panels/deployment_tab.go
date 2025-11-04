@@ -96,7 +96,7 @@ func NewDeploymentTab(th *material.Theme, dr *k8sservice.DeployedResources, k8sC
 						for _, inst := range selected.AllInstances {
 							inst.SetAction(common.Delete)
 							targetNs := selected.OriginalCrs[inst.Instance.GetId()].FinalNs
-							if _, err := tab.client.DeployResource(inst, targetNs); err != nil {
+							if _, _, err := tab.client.DeployResource(inst, targetNs); err != nil {
 								anyFailure = err
 								task.Update("Failed to undeploy " + inst.GetName() + " err: " + err.Error())
 							} else {

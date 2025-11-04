@@ -17,6 +17,8 @@ const (
 	IN_APP_LOGGER_NAME = "in-app"
 )
 
+var REPLY_CONTENT_KEY = "content"
+
 // appLoggers are used to log to UI components
 var appLoggers = make(map[string]*zap.Logger)
 var loggerLock = sync.RWMutex{}
@@ -59,6 +61,6 @@ func GetLogger(name string) *zap.Logger {
 	if l, ok := appLoggers[name]; ok {
 		return l
 	}
-	fmt.Printf("No logger named %s found\n", name)
+	fmt.Printf("*** No logger named %s found\n", name)
 	return zap.NewNop()
 }
