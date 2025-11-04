@@ -181,7 +181,7 @@ func (sma *SaveMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) e
 		defer writer.Close()
 
 		for _, liner := range editor.originContent {
-			writer.Write([]byte(liner.line.Text + "\n"))
+			writer.Write([]byte(liner.lineLabel.Text + "\n"))
 		}
 	}()
 
@@ -306,11 +306,13 @@ func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []
 }
 
 type Liner struct {
-	content    *string
-	line       material.LabelStyle
-	lineNumber material.LabelStyle
-	clickable  widget.Clickable
-	isSelected bool
+	content                 *string
+	lineLabel               material.LabelStyle
+	lineNumberLabel         material.LabelStyle
+	originalLineNumberLabel material.LabelStyle
+	clickable               widget.Clickable
+	isSelected              bool
+	originalLineIndex       int
 }
 
 func (l *Liner) Match(filterText string, caseSensitive bool) bool {
@@ -328,13 +330,32 @@ func (l *Liner) Clicked() bool {
 func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dimensions {
 
 	if l.isSelected {
-		l.lineNumber.Color = COLOR.Black
-		l.line.Color = COLOR.Blue
+		l.lineNumberLabel.Color = COLOR.Black
+		l.lineLabel.Color = COLOR.Blue
 	} else {
-		l.lineNumber.Color = COLOR.LightGray
-		l.line.Color = COLOR.Black
+		l.lineNumberLabel.Color = COLOR.LightGray
+		l.lineLabel.Color = COLOR.Black
 	}
-	l.lineNumber.Text = (fmt.Sprintf("%d", index+1))
+	l.lineNumberLabel.Text = (fmt.Sprintf("%d", index+1))
+
+	if l.originalLineIndex != index {
+		return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
+
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+
+					gtx.Constraints.Min.X = lineWidth
+
+					return l.lineNumberLabel.Layout(gtx)
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					return l.originalLineNumberLabel.Layout(gtx)
+				}),
+				layout.Flexed(1.0, l.lineLabel.Layout),
+			)
+
+		})
+	}
 
 	return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
 
@@ -343,15 +364,15 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 
 				gtx.Constraints.Min.X = lineWidth
 
-				return l.lineNumber.Layout(gtx)
+				return l.lineNumberLabel.Layout(gtx)
 			}),
-			layout.Flexed(1.0, l.line.Layout),
+			layout.Flexed(1.0, l.lineLabel.Layout),
 		)
 
 	})
 }
 
-func (se *ReadOnlyEditor) NewLiner(content *string) *Liner {
+func (se *ReadOnlyEditor) NewLiner(content *string, index int) *Liner {
 
 	// only show up to 1024 chars
 	var displayContent string
@@ -360,11 +381,19 @@ func (se *ReadOnlyEditor) NewLiner(content *string) *Liner {
 	} else {
 		displayContent = *content
 	}
+
 	lineNumber := material.Label(se.th, unit.Sp(se.textSize), fmt.Sprintf("%d", 10))
 	lineNumber.TextSize = unit.Sp(se.textSize - 3)
 	lineNumber.LineHeight = unit.Sp(se.textSize - 2)
 	lineNumber.Color = COLOR.LightGray
 	lineNumber.Font.Typeface = "monospace"
+
+	originalLineNumber := material.Label(se.th, unit.Sp(se.textSize), fmt.Sprintf("%d", 10))
+	originalLineNumber.TextSize = unit.Sp(se.textSize - 3)
+	originalLineNumber.LineHeight = unit.Sp(se.textSize - 2)
+	originalLineNumber.Color = COLOR.Blue
+	originalLineNumber.Font.Typeface = "monospace"
+	originalLineNumber.Text = fmt.Sprintf("(%d)", index+1)
 
 	line := material.Label(se.th, unit.Sp(se.textSize), displayContent)
 	line.TextSize = unit.Sp(se.textSize)
@@ -373,9 +402,11 @@ func (se *ReadOnlyEditor) NewLiner(content *string) *Liner {
 	line.Font.Typeface = "monospace"
 
 	return &Liner{
-		content:    content,
-		line:       line,
-		lineNumber: lineNumber,
+		content:                 content,
+		lineLabel:               line,
+		lineNumberLabel:         lineNumber,
+		originalLineNumberLabel: originalLineNumber,
+		originalLineIndex:       index,
 	}
 }
 
@@ -408,9 +439,9 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 			}
 
 			if lineNumberWidth == -1 {
-				liner.lineNumber.Text = fmt.Sprintf("%d", len(content)*10)
+				liner.lineNumberLabel.Text = fmt.Sprintf("%d", len(content)*10)
 				macro := op.Record(gtx.Ops)
-				numSize := liner.lineNumber.Layout(gtx)
+				numSize := liner.lineNumberLabel.Layout(gtx)
 				macro.Stop()
 				lineNumberWidth = numSize.Size.X
 			}
@@ -484,12 +515,12 @@ func (se *ReadOnlyEditor) SetText(text *string) {
 	se.originContent = make([]*Liner, 0)
 	for scanner.Scan() {
 		line := scanner.Text()
-		liner := se.NewLiner(&line)
+		liner := se.NewLiner(&line, len(se.originContent))
 		se.originContent = append(se.originContent, liner)
 	}
 	if err := scanner.Err(); err != nil {
 		msg := err.Error()
-		se.originContent = append(se.originContent, se.NewLiner(&msg))
+		se.originContent = append(se.originContent, se.NewLiner(&msg, len(se.originContent)))
 	}
 	if se.filterOn {
 		se.filter.SetOriginalContent(se.originContent)
