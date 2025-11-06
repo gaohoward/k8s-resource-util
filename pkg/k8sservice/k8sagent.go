@@ -27,6 +27,8 @@ func init() {
 	logger, _ = logs.NewAppLogger("k8sservice")
 }
 
+var CACHE_KEY_API_RESOURCES = "api_resources"
+
 type K8sService interface {
 	IsValid() bool
 	DeployResource(res *common.ResourceInstanceAction, targetNs string) (types.NamespacedName, error)
@@ -245,7 +247,7 @@ func (r *RemoteK8sService) DeployResource(res *common.ResourceInstanceAction, ta
 // FetchAllApiResources implements K8sService.
 func (r *RemoteK8sService) FetchAllApiResources(force bool) *common.ApiResourceInfo {
 
-	if cached, timeout := r.Cache.GetObject("api_resources"); cached != nil {
+	if cached, timeout := r.Cache.GetObject(CACHE_KEY_API_RESOURCES); cached != nil {
 		if !timeout {
 			return cached.(*common.ApiResourceInfo)
 		}

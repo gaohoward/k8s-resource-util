@@ -7,39 +7,50 @@ var DEFAULT_CACHE_TIMEOUT = 1 * 60 * time.Second
 type CacheValue struct {
 	value     any
 	timestamp time.Time
+	timeout   time.Duration
 }
 
-func newCacheValue(value any) *CacheValue {
+func newCacheValue(value any, ownTimeout time.Duration) *CacheValue {
 	return &CacheValue{
 		value:     value,
 		timestamp: time.Now(),
+		timeout:   ownTimeout,
 	}
 }
 
 // The cache is used by k8sService to
 // improve performance
 type K8sClientCache struct {
-	cache   map[string]*CacheValue
-	timeout time.Duration
+	cache      map[string]*CacheValue
+	defTimeout time.Duration
 }
 
 func NewK8sCache() *K8sClientCache {
 	return &K8sClientCache{
-		cache:   make(map[string]*CacheValue),
-		timeout: DEFAULT_CACHE_TIMEOUT,
+		cache:      make(map[string]*CacheValue),
+		defTimeout: DEFAULT_CACHE_TIMEOUT,
 	}
 }
 
 func (c *K8sClientCache) Put(key string, value any) {
-	cacheValue := newCacheValue(value)
+	cacheValue := newCacheValue(value, 0)
+	if key == CACHE_KEY_API_RESOURCES {
+		// hack. Need to change on api level to pass in specific timeout
+		// Put(key string, value any, timeout time.Duration)
+		cacheValue.timeout = 24 * time.Hour
+	}
 	c.cache[key] = cacheValue
+
 }
 
 func (c *K8sClientCache) IsTimedOut(value *CacheValue) bool {
 	if value == nil {
 		return true
 	}
-	return time.Since(value.timestamp) > c.timeout
+	if value.timeout > 0 {
+		return time.Since(value.timestamp) > value.timeout
+	}
+	return time.Since(value.timestamp) > c.defTimeout
 }
 
 // return nil means no cache, true means the cached value is outdated

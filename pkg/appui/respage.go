@@ -322,6 +322,7 @@ func (rp *ResourcePage) setCurrent(newCurrent *ActiveResource) {
 
 		rp.current = newCurrent.Instance
 		rp.crPanel.SetText(rp.current.GetCR())
+
 		schema := rp.current.GetSpecSchema()
 		if schema == "" || IsCached(schema) {
 			// when loaded from repo, the non-builtin schema is not loaded
