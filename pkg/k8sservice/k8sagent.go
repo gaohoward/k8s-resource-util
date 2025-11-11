@@ -624,10 +624,7 @@ func NewLocalK8sService() *LocalK8sService {
 func InitK8sService() {
 
 	// kubeconfig can be like agent=host:8080
-	if strings.HasPrefix(options.Options.Kubeconfig, "agent=") {
-
-		agentUrl := strings.TrimPrefix(options.Options.Kubeconfig, "agent=")
-
+	if agentUrl, ok := strings.CutPrefix(options.Options.Kubeconfig, "agent="); ok {
 		k8sService = NewRemoteK8sService(agentUrl)
 	} else {
 		InitInternalK8sClient(&options.Options.Kubeconfig)
