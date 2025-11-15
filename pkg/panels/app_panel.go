@@ -44,7 +44,7 @@ func GetAppPanel(th *material.Theme, dr *k8sservice.DeployedResources, k8sClient
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.75), nil)
 	inKTab := NewInKubeTab(th, k8sClient)
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.8), nil)
-	utilTab := NewToolsTab(th)
+	utilTab := NewToolsTab(th, k8sClient)
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.85), nil)
 
 	panel.allTabs = append(panel.allTabs,

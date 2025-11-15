@@ -610,6 +610,7 @@ func ParseLineContent(line *string) (*string, *string) {
 
 func (se *ReadOnlyEditor) SetText(text *string) {
 	se.text = text
+	se.selectedLines = make([]*Liner, 0)
 
 	scanner := bufio.NewScanner(strings.NewReader(*text))
 	if len(*text) > bufio.MaxScanTokenSize {
