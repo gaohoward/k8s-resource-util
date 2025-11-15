@@ -8,6 +8,7 @@ import (
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
+	"gaohoward.tools/k8s/resutil/pkg/k8sservice"
 	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
@@ -365,6 +366,31 @@ type ConvertTool struct {
 	showDialog bool
 }
 
+type RawApiTool struct {
+	kubeClient k8sservice.K8sService
+	widget     layout.Widget
+	clickable  widget.Clickable
+	uriField   component.TextField
+	runBtn     widget.Clickable
+	result     *common.ReadOnlyEditor
+}
+
+func (rat *RawApiTool) GetClickable() *widget.Clickable {
+	return &rat.clickable
+}
+
+func (rat *RawApiTool) GetName() string {
+	return "raw-api"
+}
+
+func (rat *RawApiTool) GetTabButtons(th *material.Theme) []layout.FlexChild {
+	return nil
+}
+
+func (rat *RawApiTool) GetWidget() layout.Widget {
+	return rat.widget
+}
+
 func NewItemName() string {
 	currentTime := time.Now()
 	return currentTime.Format("item-15:04:05.000")
@@ -705,7 +731,7 @@ func NewConvertTool(th *material.Theme) Tool {
 	return c
 }
 
-func NewToolsTab(th *material.Theme) *ToolsTab {
+func NewToolsTab(th *material.Theme, client k8sservice.K8sService) *ToolsTab {
 	tab := &ToolsTab{}
 
 	tab.rigidButtons = make([]layout.FlexChild, 0)
@@ -730,7 +756,7 @@ func NewToolsTab(th *material.Theme) *ToolsTab {
 
 	tab.tools = make([]Tool, 0)
 
-	tab.tools = append(tab.tools, NewConvertTool(th))
+	tab.tools = append(tab.tools, NewConvertTool(th), NewRawApiTool(th, client))
 
 	if tab.currentTool == nil {
 		tab.currentTool = tab.tools[0]
@@ -796,6 +822,46 @@ func NewToolsTab(th *material.Theme) *ToolsTab {
 	}
 
 	return tab
+}
+
+// The raw api tools allows users to access api resources
+// in raw http format, i.e. the kubectl raw option, for example
+// kubectl get --raw "/apis/subresources.kubevirt.io"
+// or "/apis/subresources.kubevirt.io/v1/guestfs"
+func NewRawApiTool(th *material.Theme, client k8sservice.K8sService) *RawApiTool {
+	rt := &RawApiTool{
+		kubeClient: client,
+	}
+
+	rt.result = common.NewReadOnlyEditor(th, "result", 14, nil, true)
+
+	rt.uriField.SingleLine = true
+	rt.uriField.Submit = true
+
+	goBtn := material.Button(th, &rt.runBtn, "Go!")
+
+	actionBar := func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+				return rt.uriField.Layout(gtx, th, "URI:")
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				return layout.Inset{Left: unit.Dp(5)}.Layout(gtx, goBtn.Layout)
+			}),
+		)
+	}
+
+	resultArea := func(gtx layout.Context) layout.Dimensions {
+		return layout.Inset{Top: 6, Bottom: 0, Left: 0, Right: 0}.Layout(gtx, rt.result.Layout)
+	}
+
+	rt.widget = func(gtx layout.Context) layout.Dimensions {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(actionBar),
+			layout.Flexed(1.0, resultArea),
+		)
+	}
+	return rt
 }
 
 func LeafClickableLabel(gtx layout.Context, clickable *widget.Clickable, th *material.Theme, name string, selected bool) layout.Dimensions {
