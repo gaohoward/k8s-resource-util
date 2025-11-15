@@ -44,10 +44,16 @@ type K8sService interface {
 	GetClusterName() string
 	GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
 	GetDescribeFor(item *unstructured.Unstructured) (string, error)
+	DoRawRequest(s string) (string, error)
 }
 
 type LocalK8sService struct {
 	localClient *K8sClient
+}
+
+// DoRawRequest implements K8sService.
+func (l *LocalK8sService) DoRawRequest(s string) (string, error) {
+	return l.localClient.DoRawRequest(s)
 }
 
 // GetDescribeFor implements K8sService.
@@ -123,6 +129,39 @@ type RemoteK8sService struct {
 	agentUrl string
 	Conn     *grpc.ClientConn
 	Cache    *K8sClientCache
+}
+
+// DoRawRequest implements K8sService.
+func (r *RemoteK8sService) DoRawRequest(req string) (string, error) {
+
+	key := "raw_request: " + req
+	if cached, timeout := r.Cache.GetObject(key); cached != nil {
+		if !timeout {
+			return cached.(string), nil
+		}
+	}
+
+	if r.Conn == nil {
+		return "", fmt.Errorf("no remote connection")
+	}
+
+	grpcClient := NewGrpcK8SServiceClient(r.Conn)
+
+	uriStr := wrapperspb.StringValue{
+		Value: req,
+	}
+
+	reply, err := grpcClient.DoRawRequest(context.Background(), &uriStr)
+
+	if err != nil {
+		return "", fmt.Errorf("failed rpc call %v", err)
+	}
+
+	resp := reply.GetResponse()
+
+	r.Cache.Put(key, resp)
+
+	return resp, nil
 }
 
 // GetDescribeFor implements K8sService.

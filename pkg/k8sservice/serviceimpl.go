@@ -226,6 +226,17 @@ func (s *server) GetDescribeFor(_ context.Context, req *wrapperspb.StringValue) 
 
 }
 
+func (s *server) DoRawRequest(_ context.Context, req *wrapperspb.StringValue) (*RawRequestReply, error) {
+	resp, err := s.client.DoRawRequest(req.Value)
+	if err != nil {
+		return nil, err
+	}
+	return &RawRequestReply{
+		Response: resp,
+	}, nil
+}
+
+
 func NewResourceInstanceAction(req *DeployResourceRequest) *common.ResourceInstanceAction {
 	action := common.ResourceInstanceAction{}
 	action.Action = common.ResourceAction(req.Action)

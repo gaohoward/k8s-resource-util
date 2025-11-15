@@ -42,6 +42,9 @@ service GrpcK8sService {
   // GetDescribeFor(item *unstructured.Unstructured) (string, error)
 	rpc GetDescribeFor(google.protobuf.StringValue) returns (GetDescribeForReply) {}
 
+  // DoRawRequest(s string) (string, error)
+  rpc DoRawRequest(google.protobuf.StringValue) returns (RawRequestReply) {}
+
 }
 
 message CrdReply {
@@ -56,6 +59,11 @@ message GetPodContainersReply {
 
 message GetDescribeForReply {
   string describe = 1;
+  string error = 2;
+}
+
+message RawRequestReply {
+  string response = 1;
   string error = 2;
 }
 

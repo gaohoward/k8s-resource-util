@@ -136,6 +136,24 @@ type K8sClient struct {
 
 }
 
+func (k *K8sClient) DoRawRequest(s string) (string, error) {
+	clientset, err := kubernetes.NewForConfig(k.config)
+	if err != nil {
+		return err.Error(), fmt.Errorf("error in getting access to K8S")
+	}
+	resp := clientset.RESTClient().Get().AbsPath(s).Do(context.TODO())
+	if err = resp.Error(); err != nil {
+		return err.Error(), err
+	}
+
+	if data, err := resp.Raw(); err == nil {
+		return string(data), nil
+	} else {
+		return err.Error(), err
+	}
+
+}
+
 func (k *K8sClient) createNewKubectlDescribeCommand(ns *string, inReader io.Reader, outWriter io.Writer, errWriter io.Writer) *cobra.Command {
 	ioStreams := genericiooptions.IOStreams{In: inReader, Out: outWriter, ErrOut: errWriter}
 	cfgFlags := genericclioptions.NewConfigFlags(false).WithDeprecatedPasswordFlag().WithDiscoveryBurst(300).WithDiscoveryQPS(50.0)

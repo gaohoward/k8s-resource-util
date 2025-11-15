@@ -32,6 +32,7 @@ const (
 	GrpcK8SService_GetClusterName_FullMethodName       = "/GrpcK8sService/GetClusterName"
 	GrpcK8SService_GetCRDFor_FullMethodName            = "/GrpcK8sService/GetCRDFor"
 	GrpcK8SService_GetDescribeFor_FullMethodName       = "/GrpcK8sService/GetDescribeFor"
+	GrpcK8SService_DoRawRequest_FullMethodName         = "/GrpcK8sService/DoRawRequest"
 )
 
 // GrpcK8SServiceClient is the client API for GrpcK8SService service.
@@ -59,6 +60,8 @@ type GrpcK8SServiceClient interface {
 	GetCRDFor(ctx context.Context, in *ApiResourceEntry, opts ...grpc.CallOption) (*CrdReply, error)
 	// GetDescribeFor(item *unstructured.Unstructured) (string, error)
 	GetDescribeFor(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*GetDescribeForReply, error)
+	// DoRawRequest(s string) (string, error)
+	DoRawRequest(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*RawRequestReply, error)
 }
 
 type grpcK8SServiceClient struct {
@@ -188,6 +191,16 @@ func (c *grpcK8SServiceClient) GetDescribeFor(ctx context.Context, in *wrappersp
 	return out, nil
 }
 
+func (c *grpcK8SServiceClient) DoRawRequest(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*RawRequestReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RawRequestReply)
+	err := c.cc.Invoke(ctx, GrpcK8SService_DoRawRequest_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GrpcK8SServiceServer is the server API for GrpcK8SService service.
 // All implementations must embed UnimplementedGrpcK8SServiceServer
 // for forward compatibility.
@@ -213,6 +226,8 @@ type GrpcK8SServiceServer interface {
 	GetCRDFor(context.Context, *ApiResourceEntry) (*CrdReply, error)
 	// GetDescribeFor(item *unstructured.Unstructured) (string, error)
 	GetDescribeFor(context.Context, *wrapperspb.StringValue) (*GetDescribeForReply, error)
+	// DoRawRequest(s string) (string, error)
+	DoRawRequest(context.Context, *wrapperspb.StringValue) (*RawRequestReply, error)
 	mustEmbedUnimplementedGrpcK8SServiceServer()
 }
 
@@ -255,6 +270,9 @@ func (UnimplementedGrpcK8SServiceServer) GetCRDFor(context.Context, *ApiResource
 }
 func (UnimplementedGrpcK8SServiceServer) GetDescribeFor(context.Context, *wrapperspb.StringValue) (*GetDescribeForReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDescribeFor not implemented")
+}
+func (UnimplementedGrpcK8SServiceServer) DoRawRequest(context.Context, *wrapperspb.StringValue) (*RawRequestReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DoRawRequest not implemented")
 }
 func (UnimplementedGrpcK8SServiceServer) mustEmbedUnimplementedGrpcK8SServiceServer() {}
 func (UnimplementedGrpcK8SServiceServer) testEmbeddedByValue()                        {}
@@ -468,6 +486,24 @@ func _GrpcK8SService_GetDescribeFor_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GrpcK8SService_DoRawRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(wrapperspb.StringValue)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GrpcK8SServiceServer).DoRawRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: GrpcK8SService_DoRawRequest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GrpcK8SServiceServer).DoRawRequest(ctx, req.(*wrapperspb.StringValue))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GrpcK8SService_ServiceDesc is the grpc.ServiceDesc for GrpcK8SService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -514,6 +550,10 @@ var GrpcK8SService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDescribeFor",
 			Handler:    _GrpcK8SService_GetDescribeFor_Handler,
+		},
+		{
+			MethodName: "DoRawRequest",
+			Handler:    _GrpcK8SService_DoRawRequest_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

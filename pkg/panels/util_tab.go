@@ -375,6 +375,15 @@ type RawApiTool struct {
 	result     *common.ReadOnlyEditor
 }
 
+func (rat *RawApiTool) Run() {
+	if rep, err := rat.kubeClient.DoRawRequest(rat.uriField.Text()); err == nil {
+		rat.result.SetText(&rep)
+	} else {
+		errInfo := err.Error()
+		rat.result.SetText(&errInfo)
+	}
+}
+
 func (rat *RawApiTool) GetClickable() *widget.Clickable {
 	return &rat.clickable
 }
@@ -841,6 +850,10 @@ func NewRawApiTool(th *material.Theme, client k8sservice.K8sService) *RawApiTool
 	goBtn := material.Button(th, &rt.runBtn, "Go!")
 
 	actionBar := func(gtx layout.Context) layout.Dimensions {
+
+		if rt.runBtn.Clicked(gtx) {
+			go rt.Run()
+		}
 		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
 			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
 				return rt.uriField.Layout(gtx, th, "URI:")
