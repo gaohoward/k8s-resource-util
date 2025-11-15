@@ -1,6 +1,8 @@
 package common
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"image"
 	"image/color"
@@ -477,4 +479,18 @@ func (sb *SearchBar) Layout(gtx layout.Context, th *material.Theme) layout.Dimen
 		}),
 		layout.Flexed(1.0, editor.Layout),
 	)
+}
+
+func ParseCerts(certData []byte) ([]*x509.Certificate, error) {
+	var certList = make([]*x509.Certificate, 0)
+	certBlock, rest := pem.Decode(certData)
+	for certBlock != nil {
+		cert, err := x509.ParseCertificate(certBlock.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse certificate: %v", err)
+		}
+		certList = append(certList, cert)
+		certBlock, rest = pem.Decode(rest)
+	}
+	return certList, nil
 }

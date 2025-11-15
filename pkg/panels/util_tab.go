@@ -2,6 +2,7 @@ package panels
 
 import (
 	"encoding/base64"
+	"fmt"
 	"image"
 	"image/color"
 	"strings"
@@ -18,8 +19,11 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+	"github.com/smallstep/certinfo"
 	"go.uber.org/zap"
 )
+
+var EMPTY_STRING = ""
 
 type Tool interface {
 	GetClickable() *widget.Clickable
@@ -239,6 +243,84 @@ func (b *Base64Converter) GetName() string {
 type Base64DecodeConverter struct {
 }
 
+type X509CertDecodeConverter struct {
+}
+
+func (x *X509CertDecodeConverter) parsePem(block []byte) string {
+	builder := strings.Builder{}
+	certs, err := common.ParseCerts([]byte(block))
+	if err != nil {
+		builder.WriteString(fmt.Sprintf("Error parsing certificates: %v", err))
+	} else {
+		for i, cert := range certs {
+			certText, err := certinfo.CertificateText(cert)
+			if err != nil {
+				builder.WriteString(fmt.Sprintf("- [%d/%d] Failed to get certificate text: %v\n", i+1, len(certs), err))
+			} else {
+				builder.WriteString(fmt.Sprintf("- [%d/%d] %s\n", i+1, len(certs), certText))
+			}
+		}
+	}
+	return builder.String()
+}
+
+func isCertPossible(content *string, retry bool) (bool, *string) {
+	if strings.HasPrefix(*content, "-----BEGIN CERTIFICATE-----") {
+		return true, content
+	}
+	// maybe base64 encoded
+	if decoded, err := base64.StdEncoding.DecodeString(*content); err != nil {
+		msg := err.Error()
+		return false, &msg
+	} else {
+		decodedStr := string(decoded)
+		return isCertPossible(&decodedStr, false)
+	}
+}
+
+// Convert implements Converter.
+func (x *X509CertDecodeConverter) Convert(source *Source) *Source {
+	builder := strings.Builder{}
+	if len(source.content) > 0 {
+		pemStr := strings.TrimSpace(string(source.content))
+		if ok, content := isCertPossible(&pemStr, true); ok {
+			if certs, err := common.ParseCerts([]byte(*content)); err == nil {
+				for i, c := range certs {
+					certText, err := certinfo.CertificateText(c)
+					if err != nil {
+						builder.WriteString(fmt.Sprintf("- [%d/%d] Failed to get certificate text: %v\n", i+1, len(certs), err))
+					} else {
+						builder.WriteString(fmt.Sprintf("- [%d/%d] %s\n", i+1, len(certs), certText))
+					}
+				}
+			} else {
+				builder.WriteString("Error: " + err.Error())
+			}
+		} else {
+			builder.WriteString("Not a valid pem")
+		}
+	}
+	return &Source{
+		content:    []byte(builder.String()),
+		sourceType: TextType,
+	}
+}
+
+// GetName implements Converter.
+func (x *X509CertDecodeConverter) GetName() string {
+	return "x509CertDecode"
+}
+
+// GetType implements Converter.
+func (x *X509CertDecodeConverter) GetType() ConvertKind {
+	return x509CertDecodeKind
+}
+
+// RequiredConfigs implements Converter.
+func (x *X509CertDecodeConverter) RequiredConfigs() (string, string, []string, []string) {
+	return "", "", nil, nil
+}
+
 // RequiredConfigs implements Converter.
 func (b *Base64DecodeConverter) RequiredConfigs() (string, string, []string, []string) {
 	return "", "", nil, nil
@@ -287,6 +369,8 @@ func CreateConverter(kind ConvertKind) Converter {
 		return &Base64Converter{}
 	case base64DecodeKind:
 		return &Base64DecodeConverter{}
+	case x509CertDecodeKind:
+		return &X509CertDecodeConverter{}
 	}
 	return nil
 }
@@ -312,10 +396,11 @@ func (cnb *CommonNodeBase) AddConversion(src *Conversion, kind ConvertKind) *Con
 type ConvertKind string
 
 var (
-	noneKind         ConvertKind = "none"
-	jwtKind          ConvertKind = "jwt"
-	base64Kind       ConvertKind = "base64"
-	base64DecodeKind ConvertKind = "base64Decode"
+	noneKind           ConvertKind = "none"
+	jwtKind            ConvertKind = "jwt"
+	base64Kind         ConvertKind = "base64"
+	base64DecodeKind   ConvertKind = "base64Decode"
+	x509CertDecodeKind ConvertKind = "x509CertDecode"
 )
 
 type ConvertAction struct {
@@ -348,15 +433,16 @@ type ConvertTool struct {
 
 	conversionTopBar widget.Editor
 	sourceEditor     widget.Editor
-	targetEditor     widget.Editor
+	targetEditor     *common.ReadOnlyEditor
 
 	newTargetBtnTipArea component.TipArea
 
-	targetArea      layout.Widget
-	resize          component.Resize
-	menuState       component.MenuState
-	menuContextArea component.ContextArea
-	actions         []*ConvertAction
+	targetArea       layout.Widget
+	resize           component.Resize
+	resizeConversion component.Resize
+	menuState        component.MenuState
+	menuContextArea  component.ContextArea
+	actions          []*ConvertAction
 
 	currentItem    *Conversion
 	convList       []*Conversion
@@ -509,11 +595,12 @@ func (c *ConvertTool) updateConversionPanel() {
 	conv := c.currentItem.GetConvertKind()
 	if conv == noneKind {
 		c.conversionTopBar.SetText(c.currentItem.GetName())
-		c.targetEditor.SetText("")
+		c.targetEditor.SetText(&EMPTY_STRING)
 	} else {
 		// todo: make conv a clickable to show conv config if any (like jwt)
 		c.conversionTopBar.SetText(source + " → (" + string(conv) + ")")
-		c.targetEditor.SetText(c.currentItem.GetValueAsString())
+		val := c.currentItem.GetValueAsString()
+		c.targetEditor.SetText(&val)
 	}
 }
 
@@ -570,12 +657,19 @@ func (c *ConvertTool) NewBase64Decode() *ConvertAction {
 	}
 }
 
+func (c *ConvertTool) NewCertDecode() *ConvertAction {
+	return &ConvertAction{
+		name: "New x509certdecode",
+		kind: x509CertDecodeKind,
+	}
+}
+
 func (c *ConvertTool) initMenu(th *material.Theme) {
 
 	convMenuItems := make([]func(gtx layout.Context) layout.Dimensions, 0)
 
 	c.actions = make([]*ConvertAction, 0)
-	c.actions = append(c.actions, c.NewBase64(), c.NewBase64Decode(), c.NewJwt())
+	c.actions = append(c.actions, c.NewBase64(), c.NewBase64Decode(), c.NewCertDecode(), c.NewJwt())
 
 	for _, a := range c.actions {
 		convMenuItems = append(convMenuItems, component.MenuItem(th, &a.clickable, a.name).Layout)
@@ -590,6 +684,7 @@ func NewConvertTool(th *material.Theme) Tool {
 	c := &ConvertTool{}
 	c.newTargetBtnTooltip = component.DesktopTooltip(th, "New")
 	c.convWidgetList.Axis = layout.Vertical
+	c.targetEditor = common.NewReadOnlyEditor(th, "", 14, nil, true)
 
 	c.initMenu(th)
 
@@ -637,6 +732,7 @@ func NewConvertTool(th *material.Theme) Tool {
 		)
 	}
 	c.resize.Ratio = 0.4
+	c.resizeConversion.Ratio = 0.5
 
 	leftPart := func(gtx layout.Context) layout.Dimensions {
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
@@ -688,9 +784,7 @@ func NewConvertTool(th *material.Theme) Tool {
 		editor := material.Editor(th, &c.conversionTopBar, "conversion")
 		editor.Font.Weight = font.Bold
 
-		c.targetEditor.ReadOnly = true
 		sourceEditor := material.Editor(th, &c.sourceEditor, "source")
-		targetEditor := material.Editor(th, &c.targetEditor, "target")
 
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -714,18 +808,12 @@ func NewConvertTool(th *material.Theme) Tool {
 				if changed {
 					if c.currentItem.origin != nil {
 						c.currentItem.doConversion()
-						c.targetEditor.SetText(c.currentItem.GetValueAsString())
+						val := c.currentItem.GetValueAsString()
+						c.targetEditor.SetText(&val)
 					}
 				}
 
-				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-					layout.Flexed(0.5, func(gtx layout.Context) layout.Dimensions {
-						return sourceEditor.Layout(gtx)
-					}),
-					layout.Flexed(0.5, func(gtx layout.Context) layout.Dimensions {
-						return targetEditor.Layout(gtx)
-					}),
-				)
+				return c.resizeConversion.Layout(gtx, sourceEditor.Layout, c.targetEditor.Layout, common.VerticalSplitHandler)
 			}),
 		)
 	}

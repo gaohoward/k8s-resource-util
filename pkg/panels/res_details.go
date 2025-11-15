@@ -2,7 +2,6 @@ package panels
 
 import (
 	"bytes"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"strings"
@@ -623,7 +622,7 @@ func (cmcd *ConfigMapCertDetail) getCertContent() *string {
 	for k, v := range cmcd.configMap.Data {
 		if strings.HasPrefix(v, "-----BEGIN CERTIFICATE-----") {
 			//possible candidate
-			certList, err := ParseCerts([]byte(v))
+			certList, err := common.ParseCerts([]byte(v))
 			if err != nil {
 				continue
 			}
@@ -710,24 +709,10 @@ type SecretTlsDetail struct {
 	content       string
 }
 
-func ParseCerts(certData []byte) ([]*x509.Certificate, error) {
-	var certList = make([]*x509.Certificate, 0)
-	certBlock, rest := pem.Decode(certData)
-	for certBlock != nil {
-		cert, err := x509.ParseCertificate(certBlock.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse certificate: %v", err)
-		}
-		certList = append(certList, cert)
-		certBlock, rest = pem.Decode(rest)
-	}
-	return certList, nil
-}
-
 func (s *SecretTlsDetail) getCertContent() *string {
 	if s.content == "" {
 		if cert, ok := s.Secret.Data["tls.crt"]; ok {
-			certList, err := ParseCerts(cert)
+			certList, err := common.ParseCerts(cert)
 			if err != nil {
 				s.content = fmt.Sprintf("Failed to parse certificate: %v\n", err)
 			}
