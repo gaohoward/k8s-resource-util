@@ -482,12 +482,12 @@ func NewReloadLogAction(th *material.Theme, logDetail *PodLogDetail) *ReloadLogA
 	return reloadAct
 }
 
-func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) {
+func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) error {
 	client := k8sservice.GetK8sService()
 	cons, err := client.GetPodContainers(pd.item)
 	if err != nil {
 		logger.Warn("Failed to get pod containers", zap.Error(err))
-		return
+		return err
 	}
 
 	for i, c := range cons {
@@ -522,24 +522,34 @@ func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) {
 	pd.divider.Bottom = unit.Dp(10)
 
 	pd.theme = th
+
+	return nil
 }
 
-func NewPodLogDetail(item *unstructured.Unstructured, th *material.Theme, status common.ResStatusInfo) *PodLogDetail {
+func NewPodLogDetail(item *unstructured.Unstructured, th *material.Theme, status common.ResStatusInfo) (*PodLogDetail, error) {
 	pd := &PodLogDetail{
 		ResourceDetail: NewDetail(th, "logs", item),
 		containerLogs:  make([]*ContainerLog, 0),
 		bufferLimit:    1024 * 1024 * 10,
 	}
-	pd.Init(th, status)
+	err := pd.Init(th, status)
+	if err != nil {
+		return nil, err
+	}
 
-	return pd
+	return pd, nil
 }
 
 func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, status common.ResStatusInfo) []common.IResourceDetail {
 	result := make([]common.IResourceDetail, 0)
 
 	if item.GetKind() == "Pod" {
-		result = append(result, NewPodLogDetail(item, th, status))
+		podDetail, err := NewPodLogDetail(item, th, status)
+		if err != nil {
+			logger.Warn("Failed to create pod log detail", zap.Error(err))
+		} else {
+			result = append(result, podDetail)
+		}
 	}
 
 	if item.GetKind() == "Secret" {

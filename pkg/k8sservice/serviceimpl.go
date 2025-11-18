@@ -21,6 +21,9 @@ type server struct {
 	client *K8sClient
 }
 
+// Any methods should never return non-nil error unless it is fatal to the grpc server.
+// becuase if you return the error the grpc server will just quit.
+// If there is any app error please wrap it in the reply.
 func (s *server) IsValid(ctx context.Context, req *emptypb.Empty) (*wrapperspb.BoolValue, error) {
 	result := wrapperspb.BoolValue{
 		Value: s.client.IsValid(),
@@ -32,7 +35,9 @@ func (s *server) DeployResource(_ context.Context, resReq *DeployResourceRequest
 	res := NewResourceInstanceAction(resReq)
 	nsn, r, err := s.client.DeployResource(res, resReq.TargetNs)
 	if err != nil {
-		return nil, err
+		return &DeployResourceReply{
+			Err: err.Error(),
+		}, nil
 	}
 
 	rJson := ""
@@ -66,7 +71,7 @@ func (s *server) FetchAllApiResources(ctx context.Context, req *wrapperspb.BoolV
 	allRes := s.client.FetchAllApiResources(req.Value)
 
 	if allRes == nil {
-		return nil, nil
+		return &ApiResourceInfoReply{}, nil
 	}
 
 	resList := make([]string, 0)
@@ -98,13 +103,17 @@ func (s *server) FetchAllApiResources(ctx context.Context, req *wrapperspb.BoolV
 func (s *server) FetchGVRInstances(ctx context.Context, req *FetchGvrRequest) (*GvrReply, error) {
 	result, err := s.client.FetchGVRInstances(req.G, req.V, req.R, req.Ns)
 	if err != nil {
-		return nil, err
+		return &GvrReply{
+			Error: err.Error(),
+		}, nil
 	}
 
 	rjson, err := json.Marshal(result)
 
 	if err != nil {
-		return nil, err
+		return &GvrReply{
+			Error: err.Error(),
+		}, nil
 	}
 
 	return &GvrReply{
@@ -115,7 +124,9 @@ func (s *server) FetchGVRInstances(ctx context.Context, req *FetchGvrRequest) (*
 func (s *server) FetchAllNamespaces(context.Context, *emptypb.Empty) (*AllNamespacesReply, error) {
 	allNs, err := s.client.FetchAllNamespaces()
 	if err != nil {
-		return nil, err
+		return &AllNamespacesReply{
+			Error: err.Error(),
+		}, nil
 	}
 	return &AllNamespacesReply{
 		Namespaces: allNs,
@@ -128,14 +139,15 @@ func (s *server) GetPodLog(req *PodLogRequest, streamServer grpc.ServerStreaming
 
 	err := json.Unmarshal([]byte(req.PodRawJson), podRaw)
 	if err != nil {
-		return err
+		logger.Error("failed to unmarshal pod", zap.Error(err))
+		return nil
 	}
 
 	logReader, err := s.client.GetPodLog(podRaw, req.Container)
 
 	if err != nil {
 		logger.Info("error getting pod log", zap.Error(err))
-		return err
+		return nil
 	}
 	defer logReader.Close()
 
@@ -162,12 +174,18 @@ func (s *server) GetPodContainers(ctx context.Context, req *wrapperspb.StringVal
 
 	err := json.Unmarshal([]byte(req.Value), podRaw)
 	if err != nil {
-		return nil, err
+		return &GetPodContainersReply{
+			Containers: nil,
+			Error:      err.Error(),
+		}, nil
 	}
 
 	containers, err := s.client.GetPodContainers(podRaw)
 	if err != nil {
-		return nil, err
+		return &GetPodContainersReply{
+			Containers: nil,
+			Error:      err.Error(),
+		}, nil
 	}
 
 	return &GetPodContainersReply{
@@ -191,13 +209,17 @@ func (s *server) GetCRDFor(ctx context.Context, req *ApiResourceEntry) (*CrdRepl
 	apiRes := &v1.APIResource{}
 	err := json.Unmarshal([]byte(req.ApiResourceJson), apiRes)
 	if err != nil {
-		return nil, err
+		return &CrdReply{
+			Error: err.Error(),
+		}, nil
 	}
 	entry.ApiRes = apiRes
 
 	crd, err := s.client.GetCRDFor(entry)
 	if err != nil {
-		return nil, err
+		return &CrdReply{
+			Error: err.Error(),
+		}, nil
 	}
 
 	return &CrdReply{
@@ -211,13 +233,17 @@ func (s *server) GetDescribeFor(_ context.Context, req *wrapperspb.StringValue) 
 
 	err := json.Unmarshal([]byte(req.Value), itemRaw)
 	if err != nil {
-		return nil, err
+		return &GetDescribeForReply{
+			Error: err.Error(),
+		}, nil
 	}
 
 	describe, err := s.client.GetDescribeFor(itemRaw)
 
 	if err != nil {
-		return nil, err
+		return &GetDescribeForReply{
+			Error: err.Error(),
+		}, nil
 	}
 
 	return &GetDescribeForReply{
@@ -229,13 +255,14 @@ func (s *server) GetDescribeFor(_ context.Context, req *wrapperspb.StringValue) 
 func (s *server) DoRawRequest(_ context.Context, req *wrapperspb.StringValue) (*RawRequestReply, error) {
 	resp, err := s.client.DoRawRequest(req.Value)
 	if err != nil {
-		return nil, err
+		return &RawRequestReply{
+			Error: err.Error(),
+		}, nil
 	}
 	return &RawRequestReply{
 		Response: resp,
 	}, nil
 }
-
 
 func NewResourceInstanceAction(req *DeployResourceRequest) *common.ResourceInstanceAction {
 	action := common.ResourceInstanceAction{}
