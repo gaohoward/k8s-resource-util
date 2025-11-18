@@ -304,6 +304,9 @@ func (c *Collection) Load(targetDir string) error {
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() {
+			if c.ignoreDir(name) {
+				continue
+			}
 			// child collection
 			child := c.NewChild(name, &config.CollectionConfig{})
 			err := child.Load("")
@@ -355,6 +358,10 @@ func (c *Collection) Load(targetDir string) error {
 	}
 
 	return nil
+}
+
+func (c *Collection) ignoreDir(name string) bool {
+	return name == ".git"
 }
 
 // if you pass a targetDir, the collection won't
