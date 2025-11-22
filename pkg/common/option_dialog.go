@@ -52,7 +52,11 @@ func (od *OptionDialog) SetOptions(title string, subTitle string, keys []string,
 		od.optionWidgets[i] = &OptionWidget{
 			key:   keys[i],
 			value: defValues[i],
-			desc:  desc[i],
+		}
+		if desc != nil {
+			od.optionWidgets[i].desc = desc[i]
+		} else {
+			od.optionWidgets[i].desc = keys[i]
 		}
 		od.optionWidgets[i].valueField.Editor.SingleLine = true
 		od.optionWidgets[i].valueField.Editor.SetText(defValues[i])
