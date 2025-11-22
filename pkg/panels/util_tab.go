@@ -351,8 +351,10 @@ func (x *X509CertGenConverter) Convert(source *Source) *Source {
 	// combine info, certificate and key (if any)
 	combined := make([]byte, 0, len(certPEM)+len(keyPEM))
 	combined = append(combined, certPEM...)
+
 	if len(keyPEM) > 0 {
-		combined = append(combined, keyPEM...)
+		privLine := "===== PrivateKey: " + common.MakeExtraFragment(string(keyPEM))
+		combined = append(combined, []byte(privLine)...)
 	}
 
 	return &Source{
@@ -533,11 +535,11 @@ type ConvertAction struct {
 	kind      ConvertKind
 }
 
-func (k *ConvertKind) GetOptionKeysAndValues() (string, string, []string, []string) {
+func (k *ConvertKind) GetOptionKeysAndValues() (string, string, []string, []string, []string) {
 
 	switch *k {
 	case jwtKind:
-		return "Jwt Config", "", []string{"algorithm"}, nil
+		return "Jwt Config", "", []string{"algorithm"}, nil, nil
 	case x509CertGenKind:
 		return "Cert Config", "",
 			[]string{
@@ -553,9 +555,16 @@ func (k *ConvertKind) GetOptionKeysAndValues() (string, string, []string, []stri
 				"12",
 				"true",
 				"example.com,example2.com",
+			},
+			[]string{
+				"rsa or ecdsa",
+				"subject",
+				"valid months from now",
+				"is CA",
+				"subject alternative names",
 			}
 	}
-	return "", "", nil, nil
+	return "", "", nil, nil, nil
 }
 
 func (c *ConvertAction) DoFor(gtx layout.Context, ct *ConvertTool, options map[string]string, th *material.Theme) error {
@@ -829,17 +838,18 @@ func NewX509CertGenerator(th *material.Theme, options map[string]string) (*X509C
 		keyType = "rsa"
 	}
 
-	if keyType == "rsa" {
+	switch keyType {
+	case "rsa":
 		rsaKey, err = common.NewRsaKey(2048)
 		if err != nil {
 			return nil, err
 		}
-	} else if keyType == "ecdsa" {
+	case "ecdsa":
 		ecdsaPrivKey, err = common.NewEcdsaKey()
 		if err != nil {
 			return nil, err
 		}
-	} else {
+	default:
 		return nil, fmt.Errorf("bad key type %s", keyType)
 	}
 
@@ -900,9 +910,9 @@ func NewConvertTool(th *material.Theme) Tool {
 	c.targetArea = func(gtx layout.Context) layout.Dimensions {
 		for _, a := range c.actions {
 			if a.clickable.Clicked(gtx) {
-				if title, subTitle, keys, defValues := a.kind.GetOptionKeysAndValues(); len(keys) > 0 {
+				if title, subTitle, keys, defValues, desc := a.kind.GetOptionKeysAndValues(); len(keys) > 0 {
 
-					c.optDialog.SetOptions(title, subTitle, keys, defValues)
+					c.optDialog.SetOptions(title, subTitle, keys, defValues, desc)
 
 					c.optDialog.SetCallback(func(actionType common.ActionType, options map[string]string) {
 						c.showDialog = false

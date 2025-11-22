@@ -3,6 +3,8 @@ package common
 import (
 	"gioui.org/font"
 	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -15,6 +17,11 @@ type OptionWidget struct {
 	key        string
 	valueField component.TextField
 	value      string
+	desc       string
+}
+
+func (o *OptionWidget) GetDescription() string {
+	return o.desc
 }
 
 type OptionDialog struct {
@@ -28,7 +35,7 @@ type OptionDialog struct {
 	callback        DialogCallback
 }
 
-func (od *OptionDialog) SetOptions(title string, subTitle string, keys []string, defValues []string) {
+func (od *OptionDialog) SetOptions(title string, subTitle string, keys []string, defValues []string, desc []string) {
 	od.title = title
 	od.subTitle = subTitle
 
@@ -45,6 +52,7 @@ func (od *OptionDialog) SetOptions(title string, subTitle string, keys []string,
 		od.optionWidgets[i] = &OptionWidget{
 			key:   keys[i],
 			value: defValues[i],
+			desc:  desc[i],
 		}
 		od.optionWidgets[i].valueField.Editor.SingleLine = true
 		od.optionWidgets[i].valueField.Editor.SetText(defValues[i])
@@ -151,19 +159,23 @@ func (od *OptionDialog) Layout(
 
 	// 4 options
 	children[3] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		// measure the longest key label
+		longestKey := od.getLongestKey()
+		dims := MeasureLabelSize(gtx, th, longestKey)
 
-		return material.List(th, &od.optionsList).Layout(gtx, len(od.optionWidgets),
-			func(gtx layout.Context, index int) layout.Dimensions {
-				opWidget := od.optionWidgets[index]
-				key := opWidget.key
-				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-					layout.Rigid(material.Label(th, unit.Sp(16), key).Layout),
-					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
-						return opWidget.valueField.Layout(gtx, th, "the option value")
-					}),
-				)
-			},
-		)
+		return material.List(th, &od.optionsList).Layout(gtx, len(od.optionWidgets), func(gtx layout.Context, index int) layout.Dimensions {
+			option := od.optionWidgets[index]
+			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					d := material.Label(th, unit.Sp(16), option.key).Layout(gtx)
+					d.Size.X = dims.Size.X + gtx.Dp(unit.Dp(10))
+					return d
+				}),
+				layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+					return option.valueField.Layout(gtx, th, option.GetDescription())
+				}),
+			)
+		})
 	})
 
 	// 5 buttons
@@ -200,5 +212,54 @@ func (od *OptionDialog) Layout(
 				})
 		})
 
+	})
+}
+
+func (od *OptionDialog) getLongestKey() string {
+	longest := ""
+	for _, o := range od.optionWidgets {
+		if len(o.key) > len(longest) {
+			longest = o.key
+		}
+	}
+	return longest
+}
+
+func MeasureWidgetSize(gtx layout.Context, th *material.Theme, widget layout.Widget) layout.Dimensions {
+	newGtx := layout.Context{
+		Constraints: gtx.Constraints,
+		Metric:      gtx.Metric,
+		Now:         gtx.Now,
+		Locale:      gtx.Locale,
+		Source:      gtx.Source,
+		Values:      gtx.Values,
+		Ops:         &op.Ops{},
+	}
+
+	macro := op.Record(newGtx.Ops)
+	dims := widget(newGtx)
+	macro.Stop()
+	return dims
+}
+
+func MeasureTextFieldSize(gtx layout.Context, th *material.Theme, text string) layout.Dimensions {
+	tf := component.TextField{}
+	tf.Editor.SingleLine = true
+	tf.SetText(text)
+	return MeasureWidgetSize(gtx, th, func(gtx layout.Context) layout.Dimensions {
+		return tf.Layout(gtx, th, text)
+	})
+}
+
+func MeasureLabelSize(gtx layout.Context, th *material.Theme, labelStr string) layout.Dimensions {
+	label := material.Label(th, unit.Sp(16), labelStr)
+	label.Font.Weight = font.Bold
+	label.TextSize = unit.Sp(16)
+	label.Alignment = text.Start
+	label.MaxLines = 1
+
+	inset := layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(2), Left: unit.Dp(2), Right: unit.Dp(4)}
+	return MeasureWidgetSize(gtx, th, func(gtx layout.Context) layout.Dimensions {
+		return inset.Layout(gtx, label.Layout)
 	})
 }
