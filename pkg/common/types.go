@@ -79,6 +79,11 @@ type Collection struct {
 	path           string
 	// needed for reload itself
 	holder map[string]INode
+	Dirty  bool
+}
+
+func (c *Collection) SetDirty(flag bool) {
+	c.Dirty = flag
 }
 
 func (c *Collection) IsRoot() bool {
@@ -182,6 +187,7 @@ func NewCollection(name string, pid *string, id *string, config *config.Collecti
 		children:      make([]*Collection, 0),
 		path:          path,
 		holder:        holder,
+		Dirty:         false,
 	}
 	collection.Configuration.Id = initId
 	collection.Configuration.Name = name
@@ -495,6 +501,8 @@ type Resource interface {
 	GetLabel() string
 	GetName() string
 	Update(node INode)
+	MarkDirty(flag bool)
+	IsDirty() bool
 }
 
 type ResourceNode struct {
@@ -770,6 +778,17 @@ type ResourceInstance struct {
 	Order    *int          `yaml:"order,omitempty"`
 	InstName string
 	Label    string
+	Dirty    bool
+}
+
+// IsDirty implements Resource.
+func (ri *ResourceInstance) IsDirty() bool {
+	return ri.Dirty
+}
+
+// MarkDirty implements Resource.
+func (ri *ResourceInstance) MarkDirty(flag bool) {
+	ri.Dirty = flag
 }
 
 func (ri *ResourceInstance) Clone() *ResourceInstance {
@@ -1000,8 +1019,9 @@ func NewBuiltinInstance(apiVer string, order int) *ResourceInstance {
 		InstName: "",
 		Cr:       SampleCrs[apiVer],
 		Order:    new(int),
+		Dirty:    false,
 	}
-	*res.Order = order
+	res.Order = &order
 	res.SetId(apiVer)
 	res.Label = string(PossibleUserInputMap[apiVer])
 	return &res
@@ -1076,6 +1096,16 @@ func GetBuiltinResSpec(apiVer string) *ResourceSpec {
 
 type ResourceCollection struct {
 	collection *Collection
+}
+
+// IsDirty implements Resource.
+func (rcn *ResourceCollection) IsDirty() bool {
+	return rcn.collection.Dirty
+}
+
+// MarkDirty implements Resource.
+func (rcn *ResourceCollection) MarkDirty(flag bool) {
+	rcn.collection.SetDirty(flag)
 }
 
 // SetCR implements Resource.

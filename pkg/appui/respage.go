@@ -442,6 +442,9 @@ func (rp *ResourcePage) Layout(gtx layout.Context, th *material.Theme) layout.Di
 					Right:  unit.Dp(0),
 				}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 					label := material.H6(th, rc.Instance.GetLabel())
+					if rc.Instance.IsDirty() {
+						label.Text += "*"
+					}
 					label.TextSize = unit.Sp(16)
 					if rp.isCurrent(rc) {
 						label.Font.Weight = font.Bold
@@ -539,6 +542,25 @@ func (rp *ResourcePage) Layout(gtx layout.Context, th *material.Theme) layout.Di
 	}
 
 	var crEditorWidget layout.Widget = func(gtx layout.Context) layout.Dimensions {
+
+		if rp.current != nil {
+			changed := false
+			for {
+				e, ok := rp.crPanel.Update(gtx)
+				if !ok {
+					break
+				}
+				if _, ok := e.(widget.ChangeEvent); ok {
+					changed = true
+				}
+			}
+			if changed {
+				if strings.Compare(rp.crPanel.Text(), rp.current.GetCR()) != 0 {
+					rp.current.SetCR(rp.crPanel.Text())
+					rp.current.MarkDirty(true)
+				}
+			}
+		}
 
 		if rp.editorBtnDeploy.Clicked(gtx) {
 			rp.SaveCurrent(gtx)
@@ -788,11 +810,13 @@ func (rp *ResourcePage) SaveCurrent(gtx layout.Context) {
 		if rp.current.GetName() == "" {
 			if inst, ok := rp.current.(*common.ResourceInstance); ok {
 				rp.resourceManager.SaveTemplate(inst)
+				rp.current.MarkDirty(false)
 			} else {
 				logger.Warn("Resource is not a ResourceInstance", zap.String("Name", rp.current.GetName()))
 			}
 		} else {
 			rp.resourceManager.SaveResource(rp.current.GetId())
+			rp.current.MarkDirty(false)
 		}
 	} else {
 		logger.Warn("current is nil while saving content!")

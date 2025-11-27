@@ -279,6 +279,7 @@ func NewResourceInstanceAction(req *DeployResourceRequest) *common.ResourceInsta
 		Order:    int32PtrToIntPtr(&req.Order),
 		InstName: req.InstName,
 		Label:    req.Label,
+		Dirty: false,
 	}
 	return &action
 }
