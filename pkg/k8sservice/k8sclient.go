@@ -125,7 +125,7 @@ func GetCRDFor(resEntry *common.ApiResourceEntry, k8sConfig *rest.Config, genera
 type K8sClient struct {
 	lock            sync.RWMutex
 	config          *rest.Config
-	discoveryClient *discovery.DiscoveryClient
+	discoveryClient discovery.CachedDiscoveryInterface
 	mapper          *restmapper.DeferredDiscoveryRESTMapper
 	dynClient       *dynamic.DynamicClient
 	setupErr        string
@@ -207,6 +207,7 @@ func (k *K8sClient) FetchAllApiResources(force bool) *common.ApiResourceInfo {
 	fetched := false
 
 	if (force || k.allRes == nil) && k.IsValid() {
+		k.discoveryClient.Invalidate()
 		apiResourceList, err := k.discoveryClient.ServerPreferredResources()
 		if err != nil {
 			logger.Error("Error fetching API resources", zap.Error(err))
@@ -375,7 +376,7 @@ func (k *K8sClient) IsValid() bool {
 
 func (k *K8sClient) SetupClients() {
 	if k.config != nil {
-		if dc, err := discovery.NewDiscoveryClientForConfig(k.config); err == nil {
+		if dc, err := common.GetCachedDiscoveryClient(k.config); err == nil {
 			k.discoveryClient = dc
 			k.NewRestMapper()
 		} else {
