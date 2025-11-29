@@ -168,31 +168,6 @@ func (s *server) GetPodLog(req *PodLogRequest, streamServer grpc.ServerStreaming
 	}
 }
 
-func (s *server) GetPodContainers(ctx context.Context, req *wrapperspb.StringValue) (*GetPodContainersReply, error) {
-
-	podRaw := &unstructured.Unstructured{}
-
-	err := json.Unmarshal([]byte(req.Value), podRaw)
-	if err != nil {
-		return &GetPodContainersReply{
-			Containers: nil,
-			Error:      err.Error(),
-		}, nil
-	}
-
-	containers, err := s.client.GetPodContainers(podRaw)
-	if err != nil {
-		return &GetPodContainersReply{
-			Containers: nil,
-			Error:      err.Error(),
-		}, nil
-	}
-
-	return &GetPodContainersReply{
-		Containers: containers,
-	}, nil
-}
-
 func (s *server) GetClusterName(context.Context, *emptypb.Empty) (*wrapperspb.StringValue, error) {
 	return &wrapperspb.StringValue{
 		Value: s.client.GetClusterName(),

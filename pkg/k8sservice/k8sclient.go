@@ -407,31 +407,6 @@ func (k *K8sClient) SetupClients() {
 	}
 }
 
-func (k *K8sClient) GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error) {
-	result := make([]string, 0)
-	if k.IsValid() {
-		pod := &corev1.Pod{}
-		if runtime.DefaultUnstructuredConverter == nil {
-			return nil, fmt.Errorf("no converter")
-		}
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(podRaw.Object, &pod)
-		if err != nil {
-			return nil, err
-		}
-		if len(pod.Spec.Containers) > 0 {
-			for _, c := range pod.Spec.Containers {
-				result = append(result, c.Name)
-			}
-		}
-		if len(pod.Spec.InitContainers) > 0 {
-			for _, ic := range pod.Spec.InitContainers {
-				result = append(result, ic.Name)
-			}
-		}
-	}
-	return result, nil
-}
-
 // Get log for a single container of a pod
 // Note: callers are responsible for closing the io.ReadCloser
 func (k *K8sClient) GetPodLog(podRaw *unstructured.Unstructured, container string) (io.ReadCloser, error) {

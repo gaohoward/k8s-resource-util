@@ -28,8 +28,10 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	k8syaml "sigs.k8s.io/yaml"
 )
@@ -493,4 +495,28 @@ func ParseCerts(certData []byte) ([]*x509.Certificate, error) {
 		certBlock, rest = pem.Decode(rest)
 	}
 	return certList, nil
+}
+
+// this func doesn't need k8s client: simple local call
+func GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error) {
+	result := make([]string, 0)
+	pod := &corev1.Pod{}
+	if runtime.DefaultUnstructuredConverter == nil {
+		return nil, fmt.Errorf("no converter")
+	}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(podRaw.Object, &pod)
+	if err != nil {
+		return nil, err
+	}
+	if len(pod.Spec.Containers) > 0 {
+		for _, c := range pod.Spec.Containers {
+			result = append(result, c.Name)
+		}
+	}
+	if len(pod.Spec.InitContainers) > 0 {
+		for _, ic := range pod.Spec.InitContainers {
+			result = append(result, ic.Name)
+		}
+	}
+	return result, nil
 }

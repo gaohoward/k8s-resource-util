@@ -28,7 +28,6 @@ const (
 	GrpcK8SService_FetchGVRInstances_FullMethodName    = "/GrpcK8sService/FetchGVRInstances"
 	GrpcK8SService_FetchAllNamespaces_FullMethodName   = "/GrpcK8sService/FetchAllNamespaces"
 	GrpcK8SService_GetPodLog_FullMethodName            = "/GrpcK8sService/GetPodLog"
-	GrpcK8SService_GetPodContainers_FullMethodName     = "/GrpcK8sService/GetPodContainers"
 	GrpcK8SService_GetClusterName_FullMethodName       = "/GrpcK8sService/GetClusterName"
 	GrpcK8SService_GetCRDFor_FullMethodName            = "/GrpcK8sService/GetCRDFor"
 	GrpcK8SService_GetDescribeFor_FullMethodName       = "/GrpcK8sService/GetDescribeFor"
@@ -52,8 +51,6 @@ type GrpcK8SServiceClient interface {
 	FetchAllNamespaces(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*AllNamespacesReply, error)
 	// GetPodLog(podRaw *unstructured.Unstructured, container string) (io.ReadCloser, error)
 	GetPodLog(ctx context.Context, in *PodLogRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[wrapperspb.StringValue], error)
-	// GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error)
-	GetPodContainers(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*GetPodContainersReply, error)
 	// GetClusterName() string
 	GetClusterName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*wrapperspb.StringValue, error)
 	// GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
@@ -151,16 +148,6 @@ func (c *grpcK8SServiceClient) GetPodLog(ctx context.Context, in *PodLogRequest,
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type GrpcK8SService_GetPodLogClient = grpc.ServerStreamingClient[wrapperspb.StringValue]
 
-func (c *grpcK8SServiceClient) GetPodContainers(ctx context.Context, in *wrapperspb.StringValue, opts ...grpc.CallOption) (*GetPodContainersReply, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetPodContainersReply)
-	err := c.cc.Invoke(ctx, GrpcK8SService_GetPodContainers_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *grpcK8SServiceClient) GetClusterName(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*wrapperspb.StringValue, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(wrapperspb.StringValue)
@@ -218,8 +205,6 @@ type GrpcK8SServiceServer interface {
 	FetchAllNamespaces(context.Context, *emptypb.Empty) (*AllNamespacesReply, error)
 	// GetPodLog(podRaw *unstructured.Unstructured, container string) (io.ReadCloser, error)
 	GetPodLog(*PodLogRequest, grpc.ServerStreamingServer[wrapperspb.StringValue]) error
-	// GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error)
-	GetPodContainers(context.Context, *wrapperspb.StringValue) (*GetPodContainersReply, error)
 	// GetClusterName() string
 	GetClusterName(context.Context, *emptypb.Empty) (*wrapperspb.StringValue, error)
 	// GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
@@ -258,9 +243,6 @@ func (UnimplementedGrpcK8SServiceServer) FetchAllNamespaces(context.Context, *em
 }
 func (UnimplementedGrpcK8SServiceServer) GetPodLog(*PodLogRequest, grpc.ServerStreamingServer[wrapperspb.StringValue]) error {
 	return status.Errorf(codes.Unimplemented, "method GetPodLog not implemented")
-}
-func (UnimplementedGrpcK8SServiceServer) GetPodContainers(context.Context, *wrapperspb.StringValue) (*GetPodContainersReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetPodContainers not implemented")
 }
 func (UnimplementedGrpcK8SServiceServer) GetClusterName(context.Context, *emptypb.Empty) (*wrapperspb.StringValue, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetClusterName not implemented")
@@ -414,24 +396,6 @@ func _GrpcK8SService_GetPodLog_Handler(srv interface{}, stream grpc.ServerStream
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type GrpcK8SService_GetPodLogServer = grpc.ServerStreamingServer[wrapperspb.StringValue]
 
-func _GrpcK8SService_GetPodContainers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(wrapperspb.StringValue)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(GrpcK8SServiceServer).GetPodContainers(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: GrpcK8SService_GetPodContainers_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GrpcK8SServiceServer).GetPodContainers(ctx, req.(*wrapperspb.StringValue))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _GrpcK8SService_GetClusterName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(emptypb.Empty)
 	if err := dec(in); err != nil {
@@ -534,10 +498,6 @@ var GrpcK8SService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FetchAllNamespaces",
 			Handler:    _GrpcK8SService_FetchAllNamespaces_Handler,
-		},
-		{
-			MethodName: "GetPodContainers",
-			Handler:    _GrpcK8SService_GetPodContainers_Handler,
 		},
 		{
 			MethodName: "GetClusterName",

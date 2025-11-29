@@ -30,9 +30,6 @@ service GrpcK8sService {
 	//GetPodLog(podRaw *unstructured.Unstructured, container string) (io.ReadCloser, error)
   rpc GetPodLog(PodLogRequest) returns (stream google.protobuf.StringValue) {}
 
-	// GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error)
-  rpc GetPodContainers(google.protobuf.StringValue) returns (GetPodContainersReply) {}
-
 	// GetClusterName() string
   rpc GetClusterName(google.protobuf.Empty) returns (google.protobuf.StringValue) {}
 
@@ -49,11 +46,6 @@ service GrpcK8sService {
 
 message CrdReply {
   string crd = 1;
-  string error = 2;
-}
-
-message GetPodContainersReply {
-  repeated string containers = 1;
   string error = 2;
 }
 

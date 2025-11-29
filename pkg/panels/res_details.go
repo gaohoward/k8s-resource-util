@@ -483,8 +483,7 @@ func NewReloadLogAction(th *material.Theme, logDetail *PodLogDetail) *ReloadLogA
 }
 
 func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) error {
-	client := k8sservice.GetK8sService()
-	cons, err := client.GetPodContainers(pd.item)
+	cons, err := common.GetPodContainers(pd.item)
 	if err != nil {
 		logger.Warn("Failed to get pod containers", zap.Error(err))
 		return err

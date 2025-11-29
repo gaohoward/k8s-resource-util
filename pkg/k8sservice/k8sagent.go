@@ -40,7 +40,6 @@ type K8sService interface {
 	FetchGVRInstances(g string, v string, r string, ns string) (*unstructured.UnstructuredList, error)
 	FetchAllNamespaces() ([]string, error)
 	GetPodLog(podRaw *unstructured.Unstructured, container string) (io.ReadCloser, error)
-	GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error)
 	GetClusterName() string
 	GetCRDFor(resEntry *common.ApiResourceEntry) (string, error)
 	GetDescribeFor(item *unstructured.Unstructured) (string, error)
@@ -108,11 +107,6 @@ func (l *LocalK8sService) GetClusterInfo() *common.ClusterInfo {
 // GetClusterName implements K8sService.
 func (l *LocalK8sService) GetClusterName() string {
 	return l.localClient.GetClusterName()
-}
-
-// GetPodContainers implements K8sService.
-func (l *LocalK8sService) GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error) {
-	return l.localClient.GetPodContainers(podRaw)
 }
 
 // GetPodLog implements K8sService.
@@ -486,43 +480,6 @@ func (r *RemoteK8sService) GetClusterName() string {
 	}
 	r.Cache.Put("cluster_name", value.Value)
 	return value.Value
-}
-
-// GetPodContainers implements K8sService.
-func (r *RemoteK8sService) GetPodContainers(podRaw *unstructured.Unstructured) ([]string, error) {
-
-	key := "get_pod_containers: " + podRaw.GetName() + "/" + podRaw.GetNamespace()
-
-	if cached, timeout := r.Cache.GetObject(key); cached != nil {
-		if !timeout {
-			return cached.([]string), nil
-		}
-	}
-
-	if r.Conn == nil {
-		return nil, fmt.Errorf("no remote connection")
-	}
-
-	grpcClient := NewGrpcK8SServiceClient(r.Conn)
-
-	podJson, err := json.Marshal(podRaw)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal pod: %w", err)
-	}
-
-	podStr := wrapperspb.StringValue{
-		Value: string(podJson),
-	}
-
-	reply, err := grpcClient.GetPodContainers(context.Background(), &podStr)
-
-	if err != nil {
-		return nil, fmt.Errorf("failed rpc call %v", err)
-	}
-
-	r.Cache.Put(key, reply.GetContainers())
-
-	return reply.GetContainers(), nil
 }
 
 type LogReader struct {
