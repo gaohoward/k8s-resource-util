@@ -93,7 +93,7 @@ func (p *LogTab) Write(data []byte) (n int, err error) {
 
 		p.logBuffer.WriteString(builder.String())
 
-		p.logEditor.SetText(&p.logBuffer.content)
+		p.logEditor.SetText(&p.logBuffer.content, nil)
 	}
 	return len(data), nil
 }
@@ -109,7 +109,7 @@ func NewLogTab(th *material.Theme) *LogTab {
 
 	if err != nil {
 		text := fmt.Sprintf("No log due to logger creation error %v\n", err)
-		tab.logEditor.SetText(&text)
+		tab.logEditor.SetText(&text, nil)
 	}
 
 	tab.rigidButtons = make([]layout.FlexChild, 0)

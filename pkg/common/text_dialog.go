@@ -26,7 +26,7 @@ func NewTextDialog(th *material.Theme, title string, subTitle string, content st
 		th:       th,
 	}
 	td.editor = NewReadOnlyEditor(th, "content", 14, nil, false)
-	td.editor.SetText(&content)
+	td.editor.SetText(&content, nil)
 	return td
 }
 

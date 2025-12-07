@@ -310,9 +310,9 @@ func (rp *ResourcePage) UpdateCRD() {
 			if rp.loadErr != nil {
 				cont += "\n error: " + rp.loadErr.Error()
 			}
-			rp.crdEditor.SetText(&cont)
+			rp.crdEditor.SetText(&cont, nil)
 		} else {
-			rp.crdEditor.SetText(&NO_SCHEMA)
+			rp.crdEditor.SetText(&NO_SCHEMA, nil)
 		}
 	}
 }
@@ -329,7 +329,7 @@ func (rp *ResourcePage) setCurrent(newCurrent *ActiveResource) {
 			// when loaded from repo, the non-builtin schema is not loaded
 			schema = k8sservice.GetSchema(rp.current.GetSpecApiVer())
 		}
-		rp.crdEditor.SetText(&schema)
+		rp.crdEditor.SetText(&schema, nil)
 	}
 }
 

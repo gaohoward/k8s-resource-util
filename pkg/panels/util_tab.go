@@ -622,10 +622,10 @@ type RawApiTool struct {
 
 func (rat *RawApiTool) Run() {
 	if rep, err := rat.kubeClient.DoRawRequest(strings.TrimSpace(rat.uriField.Text())); err == nil {
-		rat.result.SetText(&rep)
+		rat.result.SetText(&rep, nil)
 	} else {
 		errInfo := "Error: " + err.Error()
-		rat.result.SetText(&errInfo)
+		rat.result.SetText(&errInfo, nil)
 	}
 }
 
@@ -752,12 +752,12 @@ func (c *ConvertTool) updateConversionPanel() {
 	conv := c.currentItem.GetConvertKind()
 	if conv == noneKind {
 		c.conversionTopBar.SetText(c.currentItem.GetName())
-		c.targetEditor.SetText(&EMPTY_STRING)
+		c.targetEditor.SetText(&EMPTY_STRING, nil)
 	} else {
 		// todo: make conv a clickable to show conv config if any (like jwt)
 		c.conversionTopBar.SetText(source + " → (" + string(conv) + ")")
 		val := c.currentItem.GetValueAsString()
-		c.targetEditor.SetText(&val)
+		c.targetEditor.SetText(&val, nil)
 	}
 }
 
@@ -871,7 +871,7 @@ func NewX509CertGenerator(th *material.Theme, options map[string]string) (*X509C
 		}
 	}
 	conf := builder.String()
-	c.configEditor.SetText(&conf)
+	c.configEditor.SetText(&conf, nil)
 	return c, nil
 }
 
@@ -1025,7 +1025,7 @@ func NewConvertTool(th *material.Theme) Tool {
 							if c.currentItem.origin != nil {
 								c.currentItem.doConversion()
 								val := c.currentItem.GetValueAsString()
-								c.targetEditor.SetText(&val)
+								c.targetEditor.SetText(&val, nil)
 							}
 						}
 					}
@@ -1072,6 +1072,9 @@ func NewToolsTab(th *material.Theme, client k8sservice.K8sService) *ToolsTab {
 	tab.tools = make([]Tool, 0)
 
 	tab.tools = append(tab.tools, NewConvertTool(th), NewRawApiTool(th, client))
+	if rt, err := NewReaderTool(th); err == nil {
+		tab.tools = append(tab.tools, rt)
+	}
 
 	if tab.currentTool == nil {
 		tab.currentTool = tab.tools[0]

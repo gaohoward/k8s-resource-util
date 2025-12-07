@@ -91,7 +91,7 @@ func NewDescribeDetail(th *material.Theme, item *unstructured.Unstructured) comm
 
 	d.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil, true)
 
-	d.contentEditor.SetText(d.getDescribeContent())
+	d.contentEditor.SetText(d.getDescribeContent(), nil)
 
 	return d
 }
@@ -151,7 +151,7 @@ func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) common.I
 	}
 
 	d.ymlEditor = common.NewReadOnlyEditor(th, "Yaml", 16, nil, true)
-	d.ymlEditor.SetText(&d.yamlContent)
+	d.ymlEditor.SetText(&d.yamlContent, nil)
 
 	return d
 }
@@ -252,7 +252,7 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 					if conLog.clickable.Clicked(gtx) || conLog.status.Clickable.Clicked(gtx) {
 						if p.currentLog != conLog {
 							p.currentLog = conLog
-							p.logEditor.SetText(p.currentLog.GetContent(false))
+							p.logEditor.SetText(p.currentLog.GetContent(false), nil)
 						}
 					}
 					if p.currentLog == conLog {
@@ -284,7 +284,7 @@ func (p *PodLogDetail) GetContent() layout.Widget {
 			// log content panel showing current container's log
 			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
 				if p.currentLog != nil && p.currentLog.Changed() {
-					p.logEditor.SetText(p.currentLog.GetContent(false))
+					p.logEditor.SetText(p.currentLog.GetContent(false), nil)
 				}
 				return p.logEditor.Layout(gtx)
 			}),
@@ -601,7 +601,7 @@ func NewConfigMapCertDetail(cm *corev1.ConfigMap, th *material.Theme, item *unst
 
 	cmcd.editor = common.NewReadOnlyEditor(th, "cert", 16, nil, true)
 
-	cmcd.editor.SetText(cmcd.getCertContent())
+	cmcd.editor.SetText(cmcd.getCertContent(), nil)
 
 	return cmcd
 }
@@ -664,7 +664,7 @@ func NewSecretDataDetail(secret *corev1.Secret, th *material.Theme, item *unstru
 
 	sdd.editor = common.NewReadOnlyEditor(th, "data", 16, nil, true)
 
-	sdd.editor.SetText(sdd.getDecodedData())
+	sdd.editor.SetText(sdd.getDecodedData(), nil)
 
 	return sdd
 }
@@ -706,7 +706,7 @@ func NewSecretTlsDetail(secret *corev1.Secret, th *material.Theme, item *unstruc
 
 	sd.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil, true)
 
-	sd.contentEditor.SetText(sd.getCertContent())
+	sd.contentEditor.SetText(sd.getCertContent(), nil)
 
 	return sd
 }

@@ -25,6 +25,31 @@ type Config struct {
 	CollectionRepoPaths []string `json:"collection_paths"`
 }
 
+func (c *Config) GetToolDir(toolName string) (string, error) {
+	cfgDir, err := GetConfigDir()
+	if err != nil {
+		logger.Error("failed to get config dir", zap.Error(err))
+		return "", err
+	}
+	toolRootDir := filepath.Join(cfgDir, "tools")
+	if _, err := os.Stat(toolRootDir); os.IsNotExist(err) {
+		err = os.MkdirAll(toolRootDir, 0755)
+		if err != nil {
+			logger.Error("failed to create tool root dir", zap.Error(err))
+			return "", err
+		}
+	}
+	toolDir := filepath.Join(toolRootDir, toolName)
+	if _, err := os.Stat(toolDir); os.IsNotExist(err) {
+		err = os.MkdirAll(toolDir, 0755)
+		if err != nil {
+			logger.Error("failed to create tool dir", zap.Error(err))
+			return "", err
+		}
+	}
+	return toolDir, nil
+}
+
 func GetConfigDir() (string, error) {
 	// Check XDG_CONFIG_HOME or fallback to ~/.config
 	configDir := os.Getenv("K8SUTIL_CONFIG_HOME")
@@ -64,6 +89,20 @@ func GetResourceDetailsDir() (string, error) {
 	return resourceDetailsDir, nil
 }
 
+func GetConfig() (*Config, error) {
+	cfgDir, err := GetConfigDir()
+	if err != nil {
+		return nil, err
+	}
+
+	config, err := LoadConfig(cfgDir)
+	if err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
 func GetCollectionRepos() ([]string, error) {
 
 	cfgDir, err := GetConfigDir()
@@ -71,7 +110,7 @@ func GetCollectionRepos() ([]string, error) {
 		return nil, err
 	}
 
-	config, err := loadConfig(cfgDir)
+	config, err := LoadConfig(cfgDir)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +137,7 @@ func GetCollectionRepos() ([]string, error) {
 	return repos, nil
 }
 
-func loadConfig(configDir string) (*Config, error) {
+func LoadConfig(configDir string) (*Config, error) {
 	var config Config
 
 	configPath := filepath.Join(configDir, "config.json")

@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"gaohoward.tools/k8s/resutil/pkg/graphics"
+	"gioui.org/font"
 	"gioui.org/io/clipboard"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -27,6 +28,12 @@ type Filter struct {
 	originalContent []*Liner
 	previousWork    []*Liner
 	editorId        string
+}
+
+type RefInfo struct {
+	LineNumber  int      `yaml:"line_number"`
+	InlineNote  string   `yaml:"inline_note"`
+	RefFileUrls []string `yaml:"ref_file_urls"`
 }
 
 func (f *Filter) SetOriginalContent(content []*Liner) {
@@ -91,6 +98,10 @@ func (f *Filter) Layout(gtx layout.Context, th *material.Theme) layout.Dimension
 	return f.filterField.Layout(gtx, th)
 }
 
+type EditorEventListener interface {
+	ExtraLinkClicked(link *ExtraLink)
+}
+
 // as editors doesn't have scroll bar support
 // we created this 'editor' using a list
 type ReadOnlyEditor struct {
@@ -108,11 +119,39 @@ type ReadOnlyEditor struct {
 
 	filterOn bool
 	filter   *Filter
+
+	eventListener EditorEventListener
+}
+
+func (se *ReadOnlyEditor) GetId() string {
+	return se.id
+}
+
+func (se *ReadOnlyEditor) RegisterEditorListener(listener EditorEventListener) error {
+	if se.eventListener != nil {
+		return fmt.Errorf("listener already set")
+	}
+	se.eventListener = listener
+	return nil
+}
+
+func (se *ReadOnlyEditor) ExtraLinkClicked(link *ExtraLink) {
+	if se.eventListener != nil {
+		se.eventListener.ExtraLinkClicked(link)
+	}
+}
+
+func (se *ReadOnlyEditor) Theme() *material.Theme {
+	return se.th
 }
 
 func (se *ReadOnlyEditor) Clear() {
 	empty := ""
-	se.SetText(&empty)
+	se.SetText(&empty, nil)
+}
+
+func (se *ReadOnlyEditor) GetSelectedLines() []*Liner {
+	return se.selectedLines
 }
 
 // PasteContent implements ClipboardHandler.
@@ -311,19 +350,45 @@ func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []
 	return se
 }
 
+type ExtraLink struct {
+	Id            int
+	SourceEditor  *ReadOnlyEditor
+	Link          string
+	linkClickable widget.Clickable
+	linkLabel     *material.LabelStyle
+}
+
+func (el *ExtraLink) Layout(gtx layout.Context) layout.Dimensions {
+	return el.linkLabel.Layout(gtx)
+}
+
 type Liner struct {
-	content                 *string
-	extraContent            *string
-	extraClickable          widget.Clickable
-	extraLabel              material.LabelStyle
-	extraDialog             *TextDialog
-	showExtra               bool
+	content        *string
+	extraContent   *string
+	extraClickable widget.Clickable
+	extraLabel     material.LabelStyle
+	extraDialog    *TextDialog
+	showExtra      bool
+
+	extraLinks []*ExtraLink
+	linkList   widget.List
+
 	lineLabel               material.LabelStyle
 	lineNumberLabel         material.LabelStyle
 	originalLineNumberLabel material.LabelStyle
 	clickable               widget.Clickable
 	isSelected              bool
 	originalLineIndex       int
+}
+
+func (l *Liner) AddRefLink(link string, editor *ReadOnlyEditor) {
+	id := len(l.extraLinks)
+	exLink := NewExtraLink(id, editor, link, l.lineLabel.TextSize)
+	l.extraLinks = append(l.extraLinks, exLink)
+}
+
+func (l *Liner) GetLineNumber() int {
+	return l.originalLineIndex
 }
 
 func (l *Liner) Match(filterText string, caseSensitive bool) bool {
@@ -359,6 +424,7 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 	}
 
 	if l.originalLineIndex != index {
+		//filtered
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
 				return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
@@ -409,6 +475,16 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 						if l.extraContent != nil {
 							return l.extraLabel.Layout(gtx)
 						}
+						if len(l.extraLinks) > 0 {
+							return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
+								lk := l.extraLinks[index]
+								if lk.linkClickable.Clicked(gtx) {
+									lk.SourceEditor.ExtraLinkClicked(lk)
+								}
+
+								return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
+							})
+						}
 						return layout.Dimensions{}
 					})
 				}),
@@ -417,7 +493,7 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 	)
 }
 
-func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *string) *Liner {
+func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *string, links []string) *Liner {
 
 	// only show up to 1024 chars
 	var displayContent string
@@ -469,7 +545,33 @@ func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *str
 		})
 	}
 
+	l.extraLinks = make([]*ExtraLink, 0)
+	for i, lk := range links {
+		el := NewExtraLink(i, se, lk, unit.Sp(se.textSize))
+		l.extraLinks = append(l.extraLinks, el)
+	}
+
 	return l
+}
+
+func NewExtraLink(id int, editor *ReadOnlyEditor, link string, textSize unit.Sp) *ExtraLink {
+	el := &ExtraLink{
+		Id:           id,
+		SourceEditor: editor,
+		Link:         link,
+	}
+
+	linkLabel := material.Label(editor.Theme(), unit.Sp(textSize), link)
+	linkLabel.LineHeight = unit.Sp(textSize)
+	linkLabel.MaxLines = 1
+	linkLabel.Color = COLOR.Red
+	linkLabel.Font.Typeface = "monospace"
+	linkLabel.Font.Weight = font.Bold
+	linkLabel.Text = fmt.Sprintf("[%d]", id)
+
+	el.linkLabel = &linkLabel
+
+	return el
 }
 
 func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
@@ -575,6 +677,14 @@ func MakeExtraFragment(original string) string {
 	return begin_token + encoded + end_token
 }
 
+const begin_link_token = "[$L$["
+const end_link_token = "]$L$]"
+
+func MakeLinkFragment(link string) string {
+	encoded := base64.StdEncoding.EncodeToString([]byte(link))
+	return begin_link_token + encoded + end_link_token
+}
+
 // extra content goes to a button popup to make each line displayed
 // nicely while can carrying extra infomation
 // to include extra messages in a line
@@ -583,32 +693,70 @@ func MakeExtraFragment(original string) string {
 // so the original line must be of the following pattern
 // <message><begin_token><extra content base64><end_token> (so end_token is optional)
 // using base64 can bypass the newlines processing in the line
-func ParseLineContent(line *string) (*string, *string) {
+func ParseLineContent(line *string, lineNumber int, extras map[int]*RefInfo) (*string, *string, []string) {
 	var l, extra *string = nil, nil
+	links := make([]string, 0)
+
+	l = line
 
 	beginIdx := strings.LastIndex(*line, begin_token)
 	if beginIdx != -1 {
 		line1 := (*line)[:beginIdx]
+		l = &line1
 
 		extra1 := (*line)[beginIdx+len(begin_token):]
 		endIdx := strings.LastIndex(extra1, end_token)
 		if endIdx != -1 {
 			extra1 = extra1[:endIdx]
 		}
-		l = &line1
 		if extra1 != "" {
 			decoded, _ := base64.StdEncoding.DecodeString(extra1)
 			extra1 = string(decoded)
 		}
 		extra = &extra1
-	} else {
-		l = line
 	}
 
-	return l, extra
+	beginLinkIdx := strings.LastIndex(*line, begin_link_token)
+	if beginLinkIdx != -1 {
+		if extra == nil {
+			lineWithoutLinks := (*line)[:beginLinkIdx]
+			l = &lineWithoutLinks
+		}
+
+		link1 := (*line)[beginLinkIdx+len(begin_link_token):]
+		endLinkIdx := strings.LastIndex(link1, end_link_token)
+		if endLinkIdx != -1 {
+			link1 = link1[:endLinkIdx]
+		}
+
+		if link1 != "" {
+			parts := strings.SplitSeq(link1, " ")
+			for part := range parts {
+				decoded, _ := base64.StdEncoding.DecodeString(part)
+				part = string(decoded)
+				links = append(links, part)
+			}
+		}
+	}
+
+	if extras != nil {
+		if info, ok := extras[lineNumber]; ok {
+			if info.InlineNote != "" {
+				if extra != nil {
+					logger.Warn("Using extras info to replace original one", zap.String("oldvalue", *extra))
+					extra = &info.InlineNote
+				}
+			}
+			if len(info.RefFileUrls) > 0 {
+				links = append(links, info.RefFileUrls...)
+			}
+		}
+	}
+
+	return l, extra, links
 }
 
-func (se *ReadOnlyEditor) SetText(text *string) {
+func (se *ReadOnlyEditor) SetText(text *string, extras map[int]*RefInfo) {
 	se.text = text
 	se.selectedLines = make([]*Liner, 0)
 
@@ -619,13 +767,14 @@ func (se *ReadOnlyEditor) SetText(text *string) {
 	se.originContent = make([]*Liner, 0)
 	for scanner.Scan() {
 		line := scanner.Text()
-		ln, extra := ParseLineContent(&line)
-		liner := se.NewLiner(ln, len(se.originContent), extra)
+		lineNumber := len(se.originContent)
+		ln, extra, links := ParseLineContent(&line, lineNumber, extras)
+		liner := se.NewLiner(ln, lineNumber, extra, links)
 		se.originContent = append(se.originContent, liner)
 	}
 	if err := scanner.Err(); err != nil {
 		msg := err.Error()
-		se.originContent = append(se.originContent, se.NewLiner(&msg, len(se.originContent), nil))
+		se.originContent = append(se.originContent, se.NewLiner(&msg, len(se.originContent), nil, nil))
 	}
 	if se.filterOn {
 		se.filter.SetOriginalContent(se.originContent)
@@ -633,5 +782,5 @@ func (se *ReadOnlyEditor) SetText(text *string) {
 }
 
 func (se *ReadOnlyEditor) SetHint(text *string) {
-	se.SetText(text)
+	se.SetText(text, nil)
 }
