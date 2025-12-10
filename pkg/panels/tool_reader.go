@@ -281,6 +281,7 @@ func NewFileNavigator(th *material.Theme, t *ReaderTool) *FileNavigator {
 	fn.sourceEditorMap = make(map[string]*FilePane)
 	fn.allPanes = make(map[string]*FilePane)
 	fn.topBar = material.Label(th, unit.Sp(16), "File Navigator")
+	fn.topBar.Font.Weight = font.Bold
 	return fn
 }
 
