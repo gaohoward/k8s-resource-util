@@ -606,7 +606,6 @@ type ConvertTool struct {
 	convList       []*Conversion
 	convWidgetList widget.List
 
-	//temp testing purpose
 	optDialog  *common.OptionDialog
 	showDialog bool
 }
@@ -896,16 +895,12 @@ func NewConvertTool(th *material.Theme) Tool {
 	c.newTargetBtnTooltip = component.DesktopTooltip(th, "New")
 	c.convWidgetList.Axis = layout.Vertical
 	c.targetEditor = common.NewReadOnlyEditor(th, "", 16, nil, true)
+	c.optDialog = common.NewOptionDialog("", "", nil, nil, nil)
 
 	c.initMenu(th)
 
 	//simulate loaded converions
 	c.loadConversions()
-
-	//testing, these belongs to converters
-	c.optDialog = common.NewOptionDialog("", "", nil, nil, func(actionType common.ActionType, options map[string]string) {
-		c.showDialog = false
-	})
 
 	c.targetArea = func(gtx layout.Context) layout.Dimensions {
 		for _, a := range c.actions {

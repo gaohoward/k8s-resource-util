@@ -10,7 +10,7 @@ func TestParsingLine(t *testing.T) {
 
 	line := CreateLineWithExtra("This is a test line", "Extra info")
 
-	l, extra, _ := ParseLineContent(&line, 1, nil)
+	l, extra, _, _ := ParseLineContent(&line, 1, nil)
 	fmt.Printf("Line: %s, Extra: %s\n", *l, *extra)
 
 	if *l != "This is a test line" {
@@ -21,7 +21,7 @@ func TestParsingLine(t *testing.T) {
 	}
 
 	line = CreateLineWithExtraFullFormat("test line", "Extra")
-	l, extra, _ = ParseLineContent(&line, 1, nil)
+	l, extra, _, _ = ParseLineContent(&line, 1, nil)
 	fmt.Printf("Line: %s, Extra: %s\n", *l, *extra)
 
 	if *l != "test line" {
@@ -32,7 +32,7 @@ func TestParsingLine(t *testing.T) {
 	}
 
 	line = "this is test line without extra"
-	l, extra, _ = ParseLineContent(&line, 1, nil)
+	l, extra, _, _ = ParseLineContent(&line, 1, nil)
 
 	if *l != line {
 		t.Errorf("Expected line to be the same as original")

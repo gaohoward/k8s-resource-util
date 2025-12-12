@@ -10,7 +10,6 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	om "github.com/wk8/go-ordered-map/v2"
-	"go.uber.org/zap"
 )
 
 type OptionWidget struct {
@@ -24,113 +23,29 @@ func (o *OptionWidget) GetDescription() string {
 	return o.desc
 }
 
-type OptionDialog struct {
+type DialogBase struct {
 	title           string
 	subTitle        string
 	okClickable     widget.Clickable
 	cancelClickable widget.Clickable
-	keyValues       *om.OrderedMap[string, string]
-	optionWidgets   []*OptionWidget
-	optionsList     widget.List
-	callback        DialogCallback
 }
 
-func (od *OptionDialog) SetOptions(title string, subTitle string, keys []string, defValues []string, desc []string) {
-	od.title = title
-	od.subTitle = subTitle
-
-	diff := len(keys) - len(defValues)
-	if diff > 0 {
-		for range diff {
-			defValues = append(defValues, "")
-		}
-	}
-
-	od.optionWidgets = make([]*OptionWidget, len(keys))
-	for i := range keys {
-		od.keyValues.Set(keys[i], defValues[i])
-		od.optionWidgets[i] = &OptionWidget{
-			key:   keys[i],
-			value: defValues[i],
-		}
-		if desc != nil {
-			od.optionWidgets[i].desc = desc[i]
-		} else {
-			od.optionWidgets[i].desc = keys[i]
-		}
-		od.optionWidgets[i].valueField.Editor.SingleLine = true
-		od.optionWidgets[i].valueField.Editor.SetText(defValues[i])
-	}
-
+type TargetPart interface {
+	Layout(gtx layout.Context, th *material.Theme, maxWidth int) layout.Dimensions
+	Apply()
+	Cancel()
 }
 
-type ActionType int
-
-const (
-	OK     ActionType = 0
-	CANCEL ActionType = 1
-)
-
-type DialogCallback func(actionType ActionType, options map[string]string)
-
-var NoOpCallback DialogCallback = func(actionType ActionType, options map[string]string) {
-	logger.Info("Dialog submitted", zap.Int("action type", int(actionType)))
-	for k, v := range options {
-		logger.Info("collected a option", zap.String("key", k), zap.String("value", v))
-	}
-}
-
-func NewOptionDialog(title string, subTitle string, keys []string, defValues []string, callback DialogCallback) *OptionDialog {
-	od := &OptionDialog{
-		title:     title,
-		subTitle:  subTitle,
-		keyValues: om.New[string, string](),
-		callback:  callback,
-	}
-
-	od.optionsList.Axis = layout.Vertical
-
-	diff := len(keys) - len(defValues)
-	if diff > 0 {
-		for range diff {
-			defValues = append(defValues, "")
-		}
-	}
-
-	od.optionWidgets = make([]*OptionWidget, len(keys))
-	for i := range keys {
-		od.keyValues.Set(keys[i], defValues[i])
-		od.optionWidgets[i] = &OptionWidget{
-			key:   keys[i],
-			value: defValues[i],
-		}
-		od.optionWidgets[i].valueField.Editor.SingleLine = true
-		od.optionWidgets[i].valueField.Editor.SetText(defValues[i])
-	}
-	return od
-}
-
-func (od *OptionDialog) CollectCurrentOptions() map[string]string {
-	options := make(map[string]string, len(od.optionWidgets))
-	for _, w := range od.optionWidgets {
-		options[w.key] = w.valueField.Editor.Text()
-	}
-	return options
-}
-
-func (od *OptionDialog) SetCallback(cb DialogCallback) {
-	od.callback = cb
-}
-
-func (od *OptionDialog) Layout(
+func (db *DialogBase) Layout(
 	gtx layout.Context,
-	th *material.Theme) layout.Dimensions {
+	th *material.Theme,
+	target TargetPart) layout.Dimensions {
 
 	children := make([]layout.FlexChild, 5)
 
 	// 1 title
 	children[0] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		titleLb := material.Label(th, unit.Sp(24), od.title)
+		titleLb := material.Label(th, unit.Sp(24), db.title)
 		titleLb.Font.Weight = font.Bold
 		titleLb.Color = COLOR.Blue
 
@@ -139,7 +54,7 @@ func (od *OptionDialog) Layout(
 		)
 	})
 
-	biggerOne := max(od.title, od.subTitle)
+	biggerOne := max(db.title, db.subTitle)
 
 	size := GetAboutWidth(gtx, th, biggerOne)
 
@@ -158,47 +73,31 @@ func (od *OptionDialog) Layout(
 
 	// 3 subtitle
 	children[2] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return material.Body1(th, od.subTitle).Layout(gtx)
+		return material.Body1(th, db.subTitle).Layout(gtx)
 	})
 
 	// 4 options
 	children[3] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		// measure the longest key label
-		longestKey := od.getLongestKey()
-		dims := MeasureLabelSize(gtx, th, longestKey)
-
-		return material.List(th, &od.optionsList).Layout(gtx, len(od.optionWidgets), func(gtx layout.Context, index int) layout.Dimensions {
-			option := od.optionWidgets[index]
-			return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					d := material.Label(th, unit.Sp(16), option.key).Layout(gtx)
-					d.Size.X = dims.Size.X + gtx.Dp(unit.Dp(10))
-					return d
-				}),
-				layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
-					return option.valueField.Layout(gtx, th, option.GetDescription())
-				}),
-			)
-		})
+		return target.Layout(gtx, th, size.Size.X)
 	})
 
 	// 5 buttons
 	children[4] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		if od.okClickable.Clicked(gtx) {
-			od.callback(OK, od.CollectCurrentOptions())
+		if db.okClickable.Clicked(gtx) {
+			target.Apply()
 		}
-		if od.cancelClickable.Clicked(gtx) {
-			od.callback(CANCEL, od.CollectCurrentOptions())
+		if db.cancelClickable.Clicked(gtx) {
+			target.Cancel()
 		}
 
 		return layout.Inset{Top: unit.Dp(20), Bottom: unit.Dp(0)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				layout.Flexed(0.5, func(gtx layout.Context) layout.Dimensions {
-					return layout.Center.Layout(gtx, material.Button(th, &od.cancelClickable, "Cancel").Layout)
+					return layout.Center.Layout(gtx, material.Button(th, &db.cancelClickable, "Cancel").Layout)
 				}),
 				layout.Flexed(0.5, func(gtx layout.Context) layout.Dimensions {
 					return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-						return layout.Center.Layout(gtx, material.Button(th, &od.okClickable, "Ok").Layout)
+						return layout.Center.Layout(gtx, material.Button(th, &db.okClickable, "Ok").Layout)
 					})
 				}),
 			)
@@ -219,9 +118,225 @@ func (od *OptionDialog) Layout(
 	})
 }
 
-func (od *OptionDialog) getLongestKey() string {
+type EditDialog struct {
+	dialogBase *DialogBase
+	editTarget *EditorDialogTarget
+}
+
+func (od *EditDialog) SetContent(content string) {
+	od.editTarget.editor.SetText(content)
+}
+
+func (od *EditDialog) SetCallback(f func(actionType ActionType, content string)) {
+	od.editTarget.callback = f
+}
+
+func (od *EditDialog) SetTitle(title string) {
+	od.dialogBase.title = title
+}
+
+type OptionDialog struct {
+	dialogBase   *DialogBase
+	optionTarget *OptionDialogTarget
+}
+
+func (ot *OptionDialogTarget) SetOptions(keys []string, defValues []string, desc []string) {
+
+	diff := len(keys) - len(defValues)
+	if diff > 0 {
+		for range diff {
+			defValues = append(defValues, "")
+		}
+	}
+
+	ot.optionWidgets = make([]*OptionWidget, len(keys))
+	for i := range keys {
+		ot.keyValues.Set(keys[i], defValues[i])
+		ot.optionWidgets[i] = &OptionWidget{
+			key:   keys[i],
+			value: defValues[i],
+		}
+		if desc != nil {
+			ot.optionWidgets[i].desc = desc[i]
+		} else {
+			ot.optionWidgets[i].desc = keys[i]
+		}
+		ot.optionWidgets[i].valueField.Editor.SingleLine = true
+		ot.optionWidgets[i].valueField.Editor.SetText(defValues[i])
+	}
+}
+
+func (od *OptionDialog) SetOptions(title string, subTitle string, keys []string, defValues []string, desc []string) {
+	od.dialogBase.title = title
+	od.dialogBase.subTitle = subTitle
+
+	diff := len(keys) - len(defValues)
+	if diff > 0 {
+		for range diff {
+			defValues = append(defValues, "")
+		}
+	}
+
+	od.optionTarget.SetOptions(keys, defValues, desc)
+}
+
+type ActionType int
+
+const (
+	OK     ActionType = 0
+	CANCEL ActionType = 1
+)
+
+type OptionDialogCallback func(actionType ActionType, options map[string]string)
+type EditDialogCallback func(actionType ActionType, content string)
+
+func NewEditDialog(th *material.Theme, title string, subTitle string, initContent string, callback EditDialogCallback) *EditDialog {
+	ed := &EditDialog{
+		dialogBase: &DialogBase{
+			title:    title,
+			subTitle: subTitle,
+		},
+	}
+
+	target := &EditorDialogTarget{
+		callback: callback,
+	}
+
+	target.editorStyle = material.Editor(th, &target.editor, "")
+	target.editorStyle.Font.Typeface = "monospace"
+	target.editorStyle.Font.Weight = font.Bold
+	target.editorStyle.TextSize = unit.Sp(16)
+	target.editorStyle.LineHeight = unit.Sp(16)
+
+	ed.editTarget = target
+	return ed
+}
+
+type EditorDialogTarget struct {
+	callback    EditDialogCallback
+	editorStyle material.EditorStyle
+	editor      widget.Editor
+}
+
+// Apply implements [TargetPart].
+func (e *EditorDialogTarget) Apply() {
+	e.callback(OK, e.editor.Text())
+}
+
+// Cancel implements [TargetPart].
+func (e *EditorDialogTarget) Cancel() {
+	e.callback(CANCEL, e.editor.Text())
+}
+
+// Layout implements [TargetPart].
+func (e *EditorDialogTarget) Layout(gtx layout.Context, _ *material.Theme, width int) layout.Dimensions {
+	border := widget.Border{
+		Color:        COLOR.Blue,
+		CornerRadius: unit.Dp(5),
+		Width:        unit.Dp(2),
+	}
+	return border.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		if gtx.Constraints.Min.X < width {
+			gtx.Constraints.Min.X = width
+		}
+		if e.editor.LineHeight > 0 {
+			gtx.Constraints.Min.Y = int(3 * e.editor.LineHeight)
+		} else {
+			gtx.Constraints.Min.Y = 48
+		}
+		return layout.Inset{Top: 2, Bottom: 2, Left: 2, Right: 2}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return e.editorStyle.Layout(gtx)
+		})
+	})
+}
+
+func (od *EditDialog) Layout(
+	gtx layout.Context,
+	th *material.Theme) layout.Dimensions {
+	return od.dialogBase.Layout(gtx, th, od.editTarget)
+}
+
+func NewOptionDialog(title string, subTitle string, keys []string, defValues []string, callback OptionDialogCallback) *OptionDialog {
+	od := &OptionDialog{
+		dialogBase: &DialogBase{
+			title:    title,
+			subTitle: subTitle,
+		},
+	}
+
+	target := &OptionDialogTarget{
+		keyValues: om.New[string, string](),
+		callback:  callback,
+	}
+
+	target.optionsList.Axis = layout.Vertical
+
+	target.SetOptions(keys, defValues, nil)
+
+	od.optionTarget = target
+	return od
+}
+
+func (od *OptionDialogTarget) CollectCurrentOptions() map[string]string {
+	options := make(map[string]string, len(od.optionWidgets))
+	for _, w := range od.optionWidgets {
+		options[w.key] = w.valueField.Editor.Text()
+	}
+	return options
+}
+
+func (od *OptionDialog) SetCallback(cb OptionDialogCallback) {
+	od.optionTarget.callback = cb
+}
+
+type OptionDialogTarget struct {
+	keyValues     *om.OrderedMap[string, string]
+	optionWidgets []*OptionWidget
+	optionsList   widget.List
+	callback      OptionDialogCallback
+}
+
+// Apply implements [TargetPart].
+func (o *OptionDialogTarget) Apply() {
+	o.callback(OK, o.CollectCurrentOptions())
+}
+
+// Cancel implements [TargetPart].
+func (o *OptionDialogTarget) Cancel() {
+	o.callback(CANCEL, o.CollectCurrentOptions())
+}
+
+// Layout implements [TargetPart].
+func (o *OptionDialogTarget) Layout(gtx layout.Context, th *material.Theme, _ int) layout.Dimensions {
+	// measure the longest key label
+	longestKey := o.getLongestKey()
+	dims := MeasureLabelSize(gtx, th, longestKey)
+
+	return material.List(th, &o.optionsList).Layout(gtx, len(o.optionWidgets), func(gtx layout.Context, index int) layout.Dimensions {
+		option := o.optionWidgets[index]
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				d := material.Label(th, unit.Sp(16), option.key).Layout(gtx)
+				d.Size.X = dims.Size.X + gtx.Dp(unit.Dp(10))
+				return d
+			}),
+			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+				return option.valueField.Layout(gtx, th, option.GetDescription())
+			}),
+		)
+	})
+}
+
+func (od *OptionDialog) Layout(
+	gtx layout.Context,
+	th *material.Theme) layout.Dimensions {
+
+	return od.dialogBase.Layout(gtx, th, od.optionTarget)
+}
+
+func (ot *OptionDialogTarget) getLongestKey() string {
 	longest := ""
-	for _, o := range od.optionWidgets {
+	for _, o := range ot.optionWidgets {
 		if len(o.key) > len(longest) {
 			longest = o.key
 		}

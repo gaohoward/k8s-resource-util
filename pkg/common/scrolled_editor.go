@@ -350,6 +350,27 @@ func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []
 	return se
 }
 
+type LineNote struct {
+	Note          string
+	noteClickable widget.Clickable
+	noteLabel     material.LabelStyle
+}
+
+func NewLineNote(note string, se *ReadOnlyEditor) *LineNote {
+	ln := &LineNote{
+		Note: note,
+	}
+
+	ln.noteLabel = material.Label(se.th, unit.Sp(se.textSize), "[note]")
+	ln.noteLabel.TextSize = unit.Sp(se.textSize)
+	ln.noteLabel.LineHeight = unit.Sp(se.textSize)
+	ln.noteLabel.MaxLines = 1
+	ln.noteLabel.Color = COLOR.Red
+	ln.noteLabel.Font.Typeface = "monospace"
+
+	return ln
+}
+
 type ExtraLink struct {
 	Id            int
 	SourceEditor  *ReadOnlyEditor
@@ -370,6 +391,10 @@ type Liner struct {
 	extraDialog    *TextDialog
 	showExtra      bool
 
+	note       *LineNote
+	showNote   bool
+	noteDialog *TextDialog
+
 	extraLinks []*ExtraLink
 	linkList   widget.List
 
@@ -381,6 +406,19 @@ type Liner struct {
 	originalLineIndex       int
 }
 
+func (l *Liner) AddNote(content string, se *ReadOnlyEditor) {
+	if strings.TrimSpace(content) == "" {
+		return
+	}
+	if l.note == nil {
+		l.note = NewLineNote(content, se)
+		l.noteDialog.editor.SetText(&content, nil)
+	} else {
+		l.note.Note = content
+		l.noteDialog.editor.SetText(&content, nil)
+	}
+}
+
 func (l *Liner) AddRefLink(link string, editor *ReadOnlyEditor) {
 	id := len(l.extraLinks)
 	exLink := NewExtraLink(id, editor, link, l.lineLabel.TextSize)
@@ -389,6 +427,13 @@ func (l *Liner) AddRefLink(link string, editor *ReadOnlyEditor) {
 
 func (l *Liner) GetLineNumber() int {
 	return l.originalLineIndex
+}
+
+func (l *Liner) GetNote() *string {
+	if l.note != nil {
+		return &l.note.Note
+	}
+	return nil
 }
 
 func (l *Liner) Match(filterText string, caseSensitive bool) bool {
@@ -423,6 +468,16 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 		}
 	}
 
+	if l.note != nil {
+		if l.note.noteClickable.Clicked(gtx) {
+			l.showNote = true
+		}
+
+		if l.showNote {
+			return l.noteDialog.Layout(gtx)
+		}
+	}
+
 	if l.originalLineIndex != index {
 		//filtered
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
@@ -451,6 +506,27 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 					return layout.Dimensions{}
 				})
 			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if l.note != nil {
+					return material.Clickable(gtx, &l.note.noteClickable, func(gtx layout.Context) layout.Dimensions {
+						return l.note.noteLabel.Layout(gtx)
+					})
+				}
+				return layout.Dimensions{}
+			}),
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				if len(l.extraLinks) > 0 {
+					return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
+						lk := l.extraLinks[index]
+						if lk.linkClickable.Clicked(gtx) {
+							lk.SourceEditor.ExtraLinkClicked(lk)
+						}
+
+						return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
+					})
+				}
+				return layout.Dimensions{}
+			}),
 		)
 	}
 
@@ -475,25 +551,36 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 						if l.extraContent != nil {
 							return l.extraLabel.Layout(gtx)
 						}
-						if len(l.extraLinks) > 0 {
-							return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
-								lk := l.extraLinks[index]
-								if lk.linkClickable.Clicked(gtx) {
-									lk.SourceEditor.ExtraLinkClicked(lk)
-								}
-
-								return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
-							})
-						}
 						return layout.Dimensions{}
 					})
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if l.note != nil {
+						return material.Clickable(gtx, &l.note.noteClickable, func(gtx layout.Context) layout.Dimensions {
+							return l.note.noteLabel.Layout(gtx)
+						})
+					}
+					return layout.Dimensions{}
+				}),
+				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+					if len(l.extraLinks) > 0 {
+						return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
+							lk := l.extraLinks[index]
+							if lk.linkClickable.Clicked(gtx) {
+								lk.SourceEditor.ExtraLinkClicked(lk)
+							}
+
+							return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
+						})
+					}
+					return layout.Dimensions{}
 				}),
 			)
 		}),
 	)
 }
 
-func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *string, links []string) *Liner {
+func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *string, note *string, links []string) *Liner {
 
 	// only show up to 1024 chars
 	var displayContent string
@@ -542,6 +629,17 @@ func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *str
 	if l.extraContent != nil {
 		l.extraDialog = NewTextDialog(se.th, "content", "", *l.extraContent, func() {
 			l.showExtra = false
+		})
+	}
+
+	if note != nil {
+		l.note = NewLineNote(*note, se)
+		l.noteDialog = NewTextDialog(se.th, "note", "", *note, func() {
+			l.showNote = false
+		})
+	} else {
+		l.noteDialog = NewTextDialog(se.th, "note", "", "", func() {
+			l.showNote = false
 		})
 	}
 
@@ -693,8 +791,8 @@ func MakeLinkFragment(link string) string {
 // so the original line must be of the following pattern
 // <message><begin_token><extra content base64><end_token> (so end_token is optional)
 // using base64 can bypass the newlines processing in the line
-func ParseLineContent(line *string, lineNumber int, extras map[int]*RefInfo) (*string, *string, []string) {
-	var l, extra *string = nil, nil
+func ParseLineContent(line *string, lineNumber int, extras map[int]*RefInfo) (*string, *string, []string, *string) {
+	var l, extra, note *string = nil, nil, nil
 	links := make([]string, 0)
 
 	l = line
@@ -742,10 +840,7 @@ func ParseLineContent(line *string, lineNumber int, extras map[int]*RefInfo) (*s
 	if extras != nil {
 		if info, ok := extras[lineNumber]; ok {
 			if info.InlineNote != "" {
-				if extra != nil {
-					logger.Warn("Using extras info to replace original one", zap.String("oldvalue", *extra))
-					extra = &info.InlineNote
-				}
+				note = &info.InlineNote
 			}
 			if len(info.RefFileUrls) > 0 {
 				links = append(links, info.RefFileUrls...)
@@ -753,7 +848,7 @@ func ParseLineContent(line *string, lineNumber int, extras map[int]*RefInfo) (*s
 		}
 	}
 
-	return l, extra, links
+	return l, extra, links, note
 }
 
 func (se *ReadOnlyEditor) SetText(text *string, extras map[int]*RefInfo) {
@@ -768,13 +863,13 @@ func (se *ReadOnlyEditor) SetText(text *string, extras map[int]*RefInfo) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		lineNumber := len(se.originContent)
-		ln, extra, links := ParseLineContent(&line, lineNumber, extras)
-		liner := se.NewLiner(ln, lineNumber, extra, links)
+		ln, extra, links, note := ParseLineContent(&line, lineNumber, extras)
+		liner := se.NewLiner(ln, lineNumber, extra, note, links)
 		se.originContent = append(se.originContent, liner)
 	}
 	if err := scanner.Err(); err != nil {
 		msg := err.Error()
-		se.originContent = append(se.originContent, se.NewLiner(&msg, len(se.originContent), nil, nil))
+		se.originContent = append(se.originContent, se.NewLiner(&msg, len(se.originContent), nil, nil, nil))
 	}
 	if se.filterOn {
 		se.filter.SetOriginalContent(se.originContent)

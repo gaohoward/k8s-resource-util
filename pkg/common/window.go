@@ -1,6 +1,8 @@
 package common
 
 import (
+	"os"
+
 	"gioui.org/app"
 	"gioui.org/x/explorer"
 )
@@ -25,4 +27,30 @@ func GetAppWindow() *app.Window {
 
 func GetExplorer() *explorer.Explorer {
 	return fileChooser
+}
+
+type FileHandler interface {
+	FileChoosed(fileUrl string, attachment any)
+	GetFilter() []string // .txt etc
+}
+
+func AsyncChooseFile(handler FileHandler, attachment any) {
+	explorer := GetExplorer()
+	reader, err := explorer.ChooseFile(handler.GetFilter()...)
+
+	if err != nil {
+		return
+	}
+	if reader == nil {
+		return
+	}
+	defer reader.Close()
+
+	if file, ok := reader.(*os.File); ok {
+		handler.FileChoosed(file.Name(), attachment)
+	} else {
+		logger.Info("cannot get file name")
+		return
+	}
+
 }

@@ -69,6 +69,19 @@ func (uictx *UIContext) register(key string, defaultValue any, requireRefresh bo
 	return nil
 }
 
+func (uictx *UIContext) pollValue(key string) (any, any) {
+	uictx.lock.Lock()
+	defer uictx.lock.Unlock()
+	if ctxData, ok := uictx.contextMap[key]; ok {
+		v := ctxData.value
+		e := ctxData.extra
+		ctxData.value = nil
+		ctxData.extra = nil
+		return v, e
+	}
+	return nil, nil
+}
+
 func (uictx *UIContext) getValue(key string) (any, any) {
 	uictx.lock.RLock()
 	defer uictx.lock.RUnlock()
@@ -141,6 +154,10 @@ func SetContextData(key string, data any, extra any) {
 
 func GetContextData(key string) (any, any) {
 	return uiContext.getValue(key)
+}
+
+func PollContextData(key string) (any, any) {
+	return uiContext.pollValue(key)
 }
 
 type LongTask struct {

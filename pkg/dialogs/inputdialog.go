@@ -26,32 +26,6 @@ type DialogControl interface {
 	Cancel()
 }
 
-type DummyDialogControl struct {
-	Widget layout.Widget
-	tmpBtn widget.Clickable
-}
-
-func NewDummyDialogControl(th *material.Theme) *DummyDialogControl {
-	inputControl := DummyDialogControl{}
-	inputControl.Widget = func(gtx layout.Context) layout.Dimensions {
-		return material.Button(th, &inputControl.tmpBtn, "test").Layout(gtx)
-	}
-	return &inputControl
-}
-
-func (dc *DummyDialogControl) GetWidget(th *material.Theme) layout.Widget {
-	return func(gtx layout.Context) layout.Dimensions {
-		return material.Button(th, &dc.tmpBtn, "test").Layout(gtx)
-	}
-}
-
-func (dc *DummyDialogControl) Apply() error {
-	return nil
-}
-
-func (dc *DummyDialogControl) Cancel() {
-}
-
 // Gio doesnt have a dialog yet
 // we use modalsheet instead
 type InputDialog struct {

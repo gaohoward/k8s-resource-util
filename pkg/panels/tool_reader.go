@@ -28,6 +28,10 @@ import (
 const (
 	MENU_ADD_NOTE = "Add Note"
 	MENU_ADD_LINK = "Add Link"
+
+	NEW_FILE_CHOSEN  = "k8sutil.tool.reader.new-file"
+	NEW_LINK_CHOSEN  = "k8sutil.tool.reader.new-link"
+	NEW_NOTE_REQUEST = "k8sutil.tool.reader.note-request"
 )
 
 type FileItem struct {
@@ -57,6 +61,21 @@ func (f *FileItem) Save() error {
 	return os.WriteFile(filePath, data, 0644)
 }
 
+func (f *FileItem) UpdateNote(liner *common.Liner, content string) {
+	ln := liner.GetLineNumber()
+	ref, ok := f.RefInfos[ln]
+	if !ok {
+		ref = &common.RefInfo{
+			LineNumber:  ln,
+			InlineNote:  "",
+			RefFileUrls: []string{},
+		}
+		f.RefInfos[ln] = ref
+	}
+	ref.InlineNote = content
+	f.Save()
+}
+
 func (f *FileItem) AddLinkRef(liner *common.Liner, link string) {
 	ln := liner.GetLineNumber()
 	ref, ok := f.RefInfos[ln]
@@ -74,17 +93,24 @@ func (f *FileItem) AddLinkRef(liner *common.Liner, link string) {
 }
 
 type FilePane struct {
-	item       *FileItem
-	editor     *common.ReadOnlyEditor
-	resize     component.Resize
-	actions    []common.MenuAction
-	controlBar layout.Widget
-	titleLabel material.LabelStyle
-	closeBtn   widget.Clickable
+	item        *FileItem
+	editor      *common.ReadOnlyEditor
+	resize      component.Resize
+	actions     []common.MenuAction
+	controlBar  layout.Widget
+	titleLabel  material.LabelStyle
+	closeBtn    widget.Clickable
+	editPanel   *common.EditDialog
+	showAddNote bool
 }
 
 func (fp *FilePane) RegisterEditorListener(fn *FileNavigator) error {
 	return fp.editor.RegisterEditorListener(fn)
+}
+
+func (fp *FilePane) UpdateNote(liner *common.Liner, content string) {
+	fp.item.UpdateNote(liner, content)
+	liner.AddNote(content, fp.editor)
 }
 
 func (fp *FilePane) AddLink(liner *common.Liner, link string) {
@@ -96,6 +122,10 @@ func (fn *FileNavigator) NewFilePane(th *material.Theme, item *FileItem) *FilePa
 	fp := &FilePane{
 		item: item,
 	}
+
+	fp.editPanel = common.NewEditDialog(th, "note", "", "", func(actionType common.ActionType, content string) {
+
+	})
 
 	fp.titleLabel = material.Label(th, unit.Sp(14), item.FileUrl)
 	fp.titleLabel.Color = common.COLOR.Blue
@@ -141,6 +171,42 @@ func (fn *FileNavigator) NewFilePane(th *material.Theme, item *FileItem) *FilePa
 }
 
 func (fp *FilePane) Layout(gtx layout.Context) layout.Dimensions {
+
+	reqData, _ := common.PollContextData(NEW_NOTE_REQUEST)
+	if reqData != nil {
+		if liner, ok := reqData.(*common.Liner); ok {
+			targetLine := liner.GetLineNumber() + 1
+			title := fmt.Sprintf("Note at line %d", targetLine)
+			existing := liner.GetNote()
+			if existing != nil {
+				fp.editPanel.SetContent(*existing)
+			}
+			fp.editPanel.SetTitle(title)
+			fp.editPanel.SetCallback(func(actionType common.ActionType, content string) {
+				fp.showAddNote = false
+				if actionType == common.OK {
+					fp.UpdateNote(liner, content)
+				}
+			})
+			fp.showAddNote = true
+		}
+	}
+
+	if fp.showAddNote {
+		return fp.editPanel.Layout(gtx, fp.editor.Theme())
+	}
+
+	data, extra := common.PollContextData(NEW_LINK_CHOSEN)
+	if data != nil && extra != nil {
+		if fileUrl, ok := data.(*string); ok {
+			if *fileUrl != "" {
+				if liner, ok := extra.(*common.Liner); ok {
+					fp.AddLink(liner, *fileUrl)
+				}
+			}
+		}
+	}
+
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return fp.controlBar(gtx)
@@ -210,6 +276,17 @@ type AddNoteAction struct {
 	Pane      *FilePane
 }
 
+// FileChoosed implements common.FileHandler.
+func (a *AddNoteAction) FileChoosed(fileUrl string, attachment any) {
+	common.SetContextData(NEW_LINK_CHOSEN, &fileUrl, attachment)
+}
+
+// GetFilter implements common.FileHandler.
+func (a *AddNoteAction) GetFilter() []string {
+	return []string{".sh", ".go", ".py", ".c", ".cpp", "java", ".pl", "Makefile"}
+
+}
+
 // Execute implements common.MenuAction.
 func (a *AddNoteAction) Execute(gtx layout.Context, se *common.ReadOnlyEditor) error {
 	switch a.name {
@@ -230,26 +307,15 @@ func (a *AddNoteAction) DoAddLink(gtx layout.Context, se *common.ReadOnlyEditor)
 	}
 	// for simplicity, we just take the first selected line
 	// pop up a the file chooser dialog to select a file
-	explorer := common.GetExplorer()
-	reader, err := explorer.ChooseFile(".sh", ".go", ".py")
-
-	if err != nil {
-		return
-	}
-	if reader == nil {
-		return
-	}
-	defer reader.Close()
-
-	if file, ok := reader.(*os.File); ok {
-		a.Pane.AddLink(lines[0], file.Name())
-	} else {
-		logger.Info("cannot get file name")
-		return
-	}
+	go common.AsyncChooseFile(a, lines[0])
 }
 
 func (a *AddNoteAction) DoAddNote(gtx layout.Context, se *common.ReadOnlyEditor) {
+	lines := se.GetSelectedLines()
+	if len(lines) == 0 {
+		return
+	}
+	common.SetContextData(NEW_NOTE_REQUEST, lines[0], nil)
 }
 
 // GetClickable implements common.MenuAction.
@@ -400,7 +466,7 @@ func (c *ReaderTool) loadFiles() {
 					logger.Error("failed to read master.idx", zap.Error(err))
 					return
 				}
-				b64Paths := strings.SplitSeq(string(data), " ")
+				b64Paths := strings.SplitSeq(strings.TrimSpace(string(data)), " ")
 				for b64Path := range b64Paths {
 					decodedPath, err := base64.StdEncoding.DecodeString(b64Path)
 					if err != nil {
@@ -432,33 +498,33 @@ func (c *ReaderTool) loadFiles() {
 	}
 }
 
-func (c *ReaderTool) NewRootFile() {
-	explorer := common.GetExplorer()
-	reader, err := explorer.ChooseFile(".sh", ".go", ".py")
-
-	if err != nil {
-		return
-	}
-	if reader == nil {
-		return
-	}
-	defer reader.Close()
-
-	if file, ok := reader.(*os.File); ok {
-		if _, ok := c.fileSet[file.Name()]; ok {
-			logger.Info("file already opened", zap.String("file", file.Name()))
-			return
+func (c *ReaderTool) updateFiles() {
+	data, _ := common.PollContextData(NEW_FILE_CHOSEN)
+	if data != nil {
+		if fileUrl, ok := data.(*string); ok {
+			if *fileUrl != "" {
+				c.GetFileItem(*fileUrl)
+				rootEntry := newRootEntry(*fileUrl)
+				c.currentEntry = rootEntry
+				c.fileList = append(c.fileList, rootEntry)
+				c.Save()
+			}
 		}
-		fileItem := c.GetFileItem(file.Name())
-		rootEntry := newRootEntry(file.Name())
-		c.currentEntry = rootEntry
-		c.fileList = append(c.fileList, rootEntry)
-		c.fileSet[file.Name()] = fileItem
-		c.Save()
-	} else {
-		logger.Info("cannot get file name")
-		return
 	}
+}
+
+// FileChoosed implements common.FileHandler.
+func (c *ReaderTool) FileChoosed(fileUrl string, _ any) {
+	common.SetContextData(NEW_FILE_CHOSEN, &fileUrl, nil)
+}
+
+// GetFilter implements common.FileHandler.
+func (c *ReaderTool) GetFilter() []string {
+	return []string{".sh", ".go", ".py"}
+}
+
+func (c *ReaderTool) NewRootFile() {
+	go common.AsyncChooseFile(c, nil)
 }
 
 func (c *ReaderTool) Save() {
@@ -543,9 +609,14 @@ func (c *ReaderTool) Init() error {
 	// Use cfg to load files as needed
 	readerDir, err := cfg.GetToolDir("reader")
 	if err != nil {
-		return fmt.Errorf("failed to get reader tool dir", err)
+		return fmt.Errorf("failed to get reader tool dir: %v", err)
 	}
 	c.BaseDir = readerDir
+
+	common.RegisterContext(NEW_FILE_CHOSEN, nil, true)
+	common.RegisterContext(NEW_LINK_CHOSEN, nil, true)
+	common.RegisterContext(NEW_NOTE_REQUEST, nil, true)
+
 	return nil
 }
 
@@ -567,6 +638,7 @@ func NewReaderTool(th *material.Theme) (Tool, error) {
 	c.loadFiles()
 
 	c.widget = func(gtx layout.Context) layout.Dimensions {
+		c.updateFiles()
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 			// the vertial action bar
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
