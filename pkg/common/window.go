@@ -5,6 +5,7 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/x/explorer"
+	"go.uber.org/zap"
 )
 
 const (
@@ -30,7 +31,7 @@ func GetExplorer() *explorer.Explorer {
 }
 
 type FileHandler interface {
-	FileChoosed(fileUrl string, attachment any)
+	FileChoosed(fileUrl string, attachment any) error
 	GetFilter() []string // .txt etc
 }
 
@@ -47,7 +48,9 @@ func AsyncChooseFile(handler FileHandler, attachment any) {
 	defer reader.Close()
 
 	if file, ok := reader.(*os.File); ok {
-		handler.FileChoosed(file.Name(), attachment)
+		if err := handler.FileChoosed(file.Name(), attachment); err != nil {
+			logger.Warn("error from handler", zap.Error(err))
+		}
 	} else {
 		logger.Info("cannot get file name")
 		return

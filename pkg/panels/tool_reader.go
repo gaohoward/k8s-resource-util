@@ -29,9 +29,9 @@ const (
 	MENU_ADD_NOTE = "Add Note"
 	MENU_ADD_LINK = "Add Link"
 
-	NEW_FILE_CHOSEN  = "k8sutil.tool.reader.new-file"
-	NEW_LINK_CHOSEN  = "k8sutil.tool.reader.new-link"
-	NEW_NOTE_REQUEST = "k8sutil.tool.reader.note-request"
+	NEW_FILE_CHOSEN       = "k8sutil.tool.reader.new-file"
+	NEW_LINK_CHOSEN_BASE  = "k8sutil.tool.reader.new-link"
+	NEW_NOTE_REQUEST_BASE = "k8sutil.tool.reader.note-request"
 )
 
 type FileItem struct {
@@ -93,15 +93,17 @@ func (f *FileItem) AddLinkRef(liner *common.Liner, link string) {
 }
 
 type FilePane struct {
-	item        *FileItem
-	editor      *common.ReadOnlyEditor
-	resize      component.Resize
-	actions     []common.MenuAction
-	controlBar  layout.Widget
-	titleLabel  material.LabelStyle
-	closeBtn    widget.Clickable
-	editPanel   *common.EditDialog
-	showAddNote bool
+	item           *FileItem
+	linkContextKey string
+	noteContextKey string
+	editor         *common.ReadOnlyEditor
+	resize         component.Resize
+	actions        []common.MenuAction
+	controlBar     layout.Widget
+	titleLabel     material.LabelStyle
+	closeBtn       widget.Clickable
+	editPanel      *common.EditDialog
+	showAddNote    bool
 }
 
 func (fp *FilePane) RegisterEditorListener(fn *FileNavigator) error {
@@ -120,12 +122,15 @@ func (fp *FilePane) AddLink(liner *common.Liner, link string) {
 
 func (fn *FileNavigator) NewFilePane(th *material.Theme, item *FileItem) *FilePane {
 	fp := &FilePane{
-		item: item,
+		item:           item,
+		linkContextKey: NEW_LINK_CHOSEN_BASE + item.FileUrl,
+		noteContextKey: NEW_NOTE_REQUEST_BASE + item.FileUrl,
 	}
 
-	fp.editPanel = common.NewEditDialog(th, "note", "", "", func(actionType common.ActionType, content string) {
+	common.RegisterContext(fp.linkContextKey, nil, true)
+	common.RegisterContext(fp.noteContextKey, nil, true)
 
-	})
+	fp.editPanel = common.NewEditDialog(th, "note", "", "", nil)
 
 	fp.titleLabel = material.Label(th, unit.Sp(14), item.FileUrl)
 	fp.titleLabel.Color = common.COLOR.Blue
@@ -172,7 +177,7 @@ func (fn *FileNavigator) NewFilePane(th *material.Theme, item *FileItem) *FilePa
 
 func (fp *FilePane) Layout(gtx layout.Context) layout.Dimensions {
 
-	reqData, _ := common.PollContextData(NEW_NOTE_REQUEST)
+	reqData, extra := common.PollContextData(fp.noteContextKey)
 	if reqData != nil {
 		if liner, ok := reqData.(*common.Liner); ok {
 			targetLine := liner.GetLineNumber() + 1
@@ -196,7 +201,7 @@ func (fp *FilePane) Layout(gtx layout.Context) layout.Dimensions {
 		return fp.editPanel.Layout(gtx, fp.editor.Theme())
 	}
 
-	data, extra := common.PollContextData(NEW_LINK_CHOSEN)
+	data, extra := common.PollContextData(fp.linkContextKey)
 	if data != nil && extra != nil {
 		if fileUrl, ok := data.(*string); ok {
 			if *fileUrl != "" {
@@ -277,8 +282,12 @@ type AddNoteAction struct {
 }
 
 // FileChoosed implements common.FileHandler.
-func (a *AddNoteAction) FileChoosed(fileUrl string, attachment any) {
-	common.SetContextData(NEW_LINK_CHOSEN, &fileUrl, attachment)
+func (a *AddNoteAction) FileChoosed(fileUrl string, attachment any) error {
+	if a.name != MENU_ADD_LINK {
+		return fmt.Errorf("wrong action type %v", a.name)
+	}
+	common.SetContextData(a.Pane.linkContextKey, &fileUrl, attachment)
+	return nil
 }
 
 // GetFilter implements common.FileHandler.
@@ -315,7 +324,7 @@ func (a *AddNoteAction) DoAddNote(gtx layout.Context, se *common.ReadOnlyEditor)
 	if len(lines) == 0 {
 		return
 	}
-	common.SetContextData(NEW_NOTE_REQUEST, lines[0], nil)
+	common.SetContextData(a.Pane.noteContextKey, lines[0], nil)
 }
 
 // GetClickable implements common.MenuAction.
@@ -514,8 +523,9 @@ func (c *ReaderTool) updateFiles() {
 }
 
 // FileChoosed implements common.FileHandler.
-func (c *ReaderTool) FileChoosed(fileUrl string, _ any) {
+func (c *ReaderTool) FileChoosed(fileUrl string, _ any) error {
 	common.SetContextData(NEW_FILE_CHOSEN, &fileUrl, nil)
+	return nil
 }
 
 // GetFilter implements common.FileHandler.
@@ -614,8 +624,6 @@ func (c *ReaderTool) Init() error {
 	c.BaseDir = readerDir
 
 	common.RegisterContext(NEW_FILE_CHOSEN, nil, true)
-	common.RegisterContext(NEW_LINK_CHOSEN, nil, true)
-	common.RegisterContext(NEW_NOTE_REQUEST, nil, true)
 
 	return nil
 }
