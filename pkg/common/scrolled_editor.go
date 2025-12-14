@@ -484,13 +484,26 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
 				return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
 
-					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+					return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							gtx.Constraints.Min.X = lineWidth
 							return l.lineNumberLabel.Layout(gtx)
 						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return l.originalLineNumberLabel.Layout(gtx)
+						}),
+						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+							if len(l.extraLinks) > 0 {
+								return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
+									lk := l.extraLinks[index]
+									if lk.linkClickable.Clicked(gtx) {
+										lk.SourceEditor.ExtraLinkClicked(lk)
+									}
+
+									return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
+								})
+							}
+							return layout.Dimensions{}
 						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							return l.lineLabel.Layout(gtx)
@@ -514,19 +527,6 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 				}
 				return layout.Dimensions{}
 			}),
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				if len(l.extraLinks) > 0 {
-					return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
-						lk := l.extraLinks[index]
-						if lk.linkClickable.Clicked(gtx) {
-							lk.SourceEditor.ExtraLinkClicked(lk)
-						}
-
-						return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
-					})
-				}
-				return layout.Dimensions{}
-			}),
 		)
 	}
 
@@ -535,10 +535,23 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Baseline}.Layout(gtx,
+						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								gtx.Constraints.Min.X = lineWidth
 								return l.lineNumberLabel.Layout(gtx)
+							}),
+							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+								if len(l.extraLinks) > 0 {
+									return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
+										lk := l.extraLinks[index]
+										if lk.linkClickable.Clicked(gtx) {
+											lk.SourceEditor.ExtraLinkClicked(lk)
+										}
+
+										return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
+									})
+								}
+								return layout.Dimensions{}
 							}),
 							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 								return l.lineLabel.Layout(gtx)
@@ -558,19 +571,6 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 					if l.note != nil {
 						return material.Clickable(gtx, &l.note.noteClickable, func(gtx layout.Context) layout.Dimensions {
 							return l.note.noteLabel.Layout(gtx)
-						})
-					}
-					return layout.Dimensions{}
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if len(l.extraLinks) > 0 {
-						return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
-							lk := l.extraLinks[index]
-							if lk.linkClickable.Clicked(gtx) {
-								lk.SourceEditor.ExtraLinkClicked(lk)
-							}
-
-							return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
 						})
 					}
 					return layout.Dimensions{}
