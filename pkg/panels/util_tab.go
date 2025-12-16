@@ -264,10 +264,18 @@ type X509CertGenConverter struct {
 	KeyType      string
 	rsaKey       *rsa.PrivateKey
 	ecdsaKey     *ecdsa.PrivateKey
+	// because each time a cert is generated with some random number
+	// so we just generate once for the same set of options.
+	// we may add a menu option to force a re-gen
+	cached *Source
 }
 
 // Convert implements Converter.
 func (x *X509CertGenConverter) Convert(source *Source) *Source {
+
+	if x.cached != nil {
+		return x.cached
+	}
 
 	expiryMonths, err := strconv.Atoi(x.Options["Expire"])
 	if err != nil {
@@ -357,11 +365,12 @@ func (x *X509CertGenConverter) Convert(source *Source) *Source {
 		combined = append(combined, []byte(privLine)...)
 	}
 
-	return &Source{
+	x.cached = &Source{
 		content:    combined,
 		sourceType: TextType,
 	}
 
+	return x.cached
 }
 
 // GetName implements Converter.
@@ -1001,9 +1010,6 @@ func NewConvertTool(th *material.Theme) Tool {
 			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
 				changed := false
 				if c.currentItem != nil {
-					if convEditor := c.currentItem.converter.GetSourceEditor(); convEditor != nil {
-						return c.resizeConversion.Layout(gtx, *convEditor, c.targetEditor.Layout, common.VerticalSplitHandler)
-					}
 					if !c.currentItem.IsReadOnly() {
 						for {
 							evt, ok := c.sourceEditor.Update(gtx)
@@ -1023,6 +1029,9 @@ func NewConvertTool(th *material.Theme) Tool {
 								c.targetEditor.SetText(&val, nil)
 							}
 						}
+					}
+					if convEditor := c.currentItem.converter.GetSourceEditor(); convEditor != nil {
+						return c.resizeConversion.Layout(gtx, *convEditor, c.targetEditor.Layout, common.VerticalSplitHandler)
 					}
 				}
 				return c.resizeConversion.Layout(gtx, sourceEditor.Layout, c.targetEditor.Layout, common.VerticalSplitHandler)
