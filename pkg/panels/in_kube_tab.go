@@ -320,7 +320,7 @@ func (s *SearchResultItem) GetSummary() string {
 	return ""
 }
 
-func (s *SearchResultItem) GetStatusIcon(th *material.Theme) common.ResStatusInfo {
+func (s *SearchResultItem) GetStatusIcon() common.ResStatusInfo {
 	if s.item.GetKind() == "Pod" && s.statusInfo == nil {
 
 		var pod corev1.Pod
@@ -330,33 +330,33 @@ func (s *SearchResultItem) GetStatusIcon(th *material.Theme) common.ResStatusInf
 		if err != nil {
 			logger.Error("error convert pod", zap.Error(err))
 		} else {
-			podStatusInfo := common.NewPodStatusInfo(pod.GetName(), th)
+			podStatusInfo := common.NewPodStatusInfo(pod.GetName())
 
 			if len(pod.Status.InitContainerStatuses) == 0 {
 				// for some reason no init status for example when pod is in pending phase
 				for _, con := range pod.Spec.InitContainers {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, string(pod.Status.Phase), th)
-					podStatusInfo.SetStatus(common.PodUnknown, "container status unkown", th)
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, string(pod.Status.Phase))
+					podStatusInfo.SetStatus(common.PodUnknown, "container status unkown")
 				}
 			} else {
 				for _, con := range pod.Status.InitContainerStatuses {
 					if con.State.Terminated != nil {
 						if con.State.Terminated.ExitCode != 0 {
-							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason, th)
-							podStatusInfo.SetStatus(common.PodError, "container terminated with error", th)
+							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason)
+							podStatusInfo.SetStatus(common.PodError, "container terminated with error")
 						} else {
-							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message, th)
-							podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally", th)
+							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message)
+							podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally")
 						}
 					} else if con.State.Waiting != nil {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason, th)
-						podStatusInfo.SetStatus(common.PodError, "container waiting", th)
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason)
+						podStatusInfo.SetStatus(common.PodError, "container waiting")
 					} else if con.State.Running != nil {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String(), th)
-						podStatusInfo.SetStatus(common.PodRunning, "container running", th)
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String())
+						podStatusInfo.SetStatus(common.PodRunning, "container running")
 					} else {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state", th)
-						podStatusInfo.SetStatus(common.PodUnknown, "container state unknown", th)
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state")
+						podStatusInfo.SetStatus(common.PodUnknown, "container state unknown")
 					}
 				}
 			}
@@ -366,38 +366,38 @@ func (s *SearchResultItem) GetStatusIcon(th *material.Theme) common.ResStatusInf
 			if len(pod.Status.ContainerStatuses) == 0 {
 				// for some reason no init status for example when pod is in pending phase
 				for _, con := range pod.Spec.Containers {
-					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, string(pod.Status.Phase), th)
-					podStatusInfo.SetStatus(common.PodUnknown, "container status unkown", th)
+					podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, string(pod.Status.Phase))
+					podStatusInfo.SetStatus(common.PodUnknown, "container status unkown")
 				}
 				allContainerRunning = false
 			} else {
 				for _, con := range pod.Status.ContainerStatuses {
 					if con.State.Terminated != nil {
 						if con.State.Terminated.ExitCode != 0 {
-							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason, th)
-							podStatusInfo.SetStatus(common.PodError, "container terminated with error", th)
+							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminatedWithError, con.State.Terminated.Reason)
+							podStatusInfo.SetStatus(common.PodError, "container terminated with error")
 							allContainerRunning = false
 						} else {
-							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message, th)
-							podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally", th)
+							podStatusInfo.SetContainerStatus(con.Name, common.ContainerTerminated, con.State.Terminated.Message)
+							podStatusInfo.SetStatus(common.ContainerTerminated, "container terminated normally")
 							allContainerRunning = false
 						}
 					} else if con.State.Waiting != nil {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason, th)
-						podStatusInfo.SetStatus(common.PodError, "container waiting", th)
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerError, con.State.Waiting.Reason)
+						podStatusInfo.SetStatus(common.PodError, "container waiting")
 						allContainerRunning = false
 					} else if con.State.Running != nil {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String(), th)
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerRunning, con.State.Running.StartedAt.Time.String())
 					} else {
-						podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state", th)
-						podStatusInfo.SetStatus(common.PodUnknown, "container state unknown", th)
+						podStatusInfo.SetContainerStatus(con.Name, common.ContainerUnknown, "unknown state")
+						podStatusInfo.SetStatus(common.PodUnknown, "container state unknown")
 						allContainerRunning = false
 					}
 				}
 			}
 
 			if allContainerRunning {
-				podStatusInfo.SetStatus(common.PodRunning, "container running", th)
+				podStatusInfo.SetStatus(common.PodRunning, "container running")
 			}
 			s.statusInfo = podStatusInfo
 			return podStatusInfo
@@ -406,11 +406,11 @@ func (s *SearchResultItem) GetStatusIcon(th *material.Theme) common.ResStatusInf
 	return s.statusInfo
 }
 
-func (s *SearchResultItem) GetDetails(gtx layout.Context, th *material.Theme) []common.IResourceDetail {
+func (s *SearchResultItem) GetDetails(gtx layout.Context) []common.IResourceDetail {
 	if len(s.details) == 0 {
 		s.details = make([]common.IResourceDetail, 0)
-		s.details = append(s.details, NewYamlDetail(th, s.item), NewDescribeDetail(th, s.item))
-		extDetails := GetExtApiDetails(s.item, th, s.statusInfo)
+		s.details = append(s.details, NewYamlDetail(s.item), NewDescribeDetail(s.item))
+		extDetails := GetExtApiDetails(s.item, s.statusInfo)
 		if len(extDetails) > 0 {
 			s.details = append(s.details, extDetails...)
 		}
@@ -418,13 +418,13 @@ func (s *SearchResultItem) GetDetails(gtx layout.Context, th *material.Theme) []
 	return s.details
 }
 
-func getSearchResultList(th *material.Theme, result []*unstructured.UnstructuredList) []*SearchResultItem {
+func getSearchResultList(result []*unstructured.UnstructuredList) []*SearchResultItem {
 	resultList := make([]*SearchResultItem, 0)
 	itemList := common.GetAllUnstructuredItems(result)
 	for _, item := range itemList {
 		resultList = append(resultList, &SearchResultItem{
 			item:   item,
-			label0: material.Label(th, unit.Sp(15), ""),
+			label0: material.Label(common.GetTheme(), unit.Sp(15), ""),
 		})
 	}
 	return resultList
@@ -434,14 +434,15 @@ func getSearchResultList(th *material.Theme, result []*unstructured.Unstructured
 // namespace should be empty if resource is not namespaced
 var headings = []string{"Name", "Kind", "Namespace"}
 
-func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context) layout.Dimensions {
+func (tab *InKubeTab) layoutCurrentDetail(gtx layout.Context) layout.Dimensions {
+	th := common.GetTheme()
 	title := tab.currentResultItem.item.GetKind() + ": " + tab.currentResultItem.item.GetName()
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			if tab.currentResultItem.SupportStatus() {
 				return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						sicon := tab.currentResultItem.GetStatusIcon(th)
+						sicon := tab.currentResultItem.GetStatusIcon()
 						if sicon != nil {
 							return sicon.Layout(gtx, 20, nil)
 						}
@@ -468,7 +469,7 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 			return layout.Dimensions{}
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-			resDetails := tab.currentResultItem.GetDetails(gtx, th)
+			resDetails := tab.currentResultItem.GetDetails(gtx)
 			collectKeyPressed := false
 			for {
 				_, ok := gtx.Event(key.Filter{
@@ -525,11 +526,13 @@ func (tab *InKubeTab) layoutCurrentDetail(th *material.Theme, gtx layout.Context
 	)
 }
 
-func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
+func NewInKubeTab(client k8sservice.K8sService) *InKubeTab {
 
 	common.RegisterContext(CONTEXT_KEY_NAMESPACE, false, true)
 	common.RegisterContext(CONTEXT_KEY_API_RESOURCE, false, true)
 	common.RegisterContext(CONTEXT_KEY_API_SEARCH_RESULT, nil, true)
+
+	th := common.GetTheme()
 
 	tab := &InKubeTab{
 		title:    "in-kube",
@@ -787,8 +790,8 @@ func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
 									rowItem.label0.Font.Weight = font.Normal
 								}
 
-								if statusIcon := rowItem.GetStatusIcon(th); statusIcon != nil {
-									newIcon := common.NewStatusIcon(statusIcon.GetStatus(), statusIcon.GetReason(), th)
+								if statusIcon := rowItem.GetStatusIcon(); statusIcon != nil {
+									newIcon := common.NewStatusIcon(statusIcon.GetStatus(), statusIcon.GetReason())
 
 									return layout.Flex{Axis: layout.Horizontal, Alignment: layout.End}.Layout(gtx,
 										layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -813,7 +816,7 @@ func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
 				func(gtx layout.Context) layout.Dimensions {
 					//details
 					if tab.currentResultItem != nil {
-						return tab.layoutCurrentDetail(th, gtx)
+						return tab.layoutCurrentDetail(gtx)
 					}
 					return layout.Dimensions{}
 				},
@@ -883,7 +886,7 @@ func NewInKubeTab(th *material.Theme, client k8sservice.K8sService) *InKubeTab {
 									tab.inQuery = true
 									go func() {
 										result, _ := tab.Query()
-										resultList := getSearchResultList(th, result)
+										resultList := getSearchResultList(result)
 										common.SetContextData(CONTEXT_KEY_API_SEARCH_RESULT, resultList, nil)
 										tab.inQuery = false
 									}()
@@ -946,7 +949,7 @@ func (a *InKubeTab) GetClickable() *widget.Clickable {
 }
 
 // GetTabButtons implements PanelTab.
-func (a *InKubeTab) GetTabButtons(th *material.Theme) []layout.FlexChild {
+func (a *InKubeTab) GetTabButtons() []layout.FlexChild {
 	return a.buttons
 }
 

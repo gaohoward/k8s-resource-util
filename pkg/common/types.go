@@ -1193,16 +1193,10 @@ type ResourceManager interface {
 	SaveResource(resId string)
 	SaveTemplate(current *ResourceInstance)
 	IsRepo(id string) bool
-	// RemoveCurrentResource()
-
-	// ResourceUpdated(pos INode)
-
-	// Load() []error
-
-	// Save() []error
 }
 
-var ItemFunc = func(th *material.Theme, gtx layout.Context, btn *widget.Clickable, text string, icon *widget.Icon) layout.Dimensions {
+var ItemFunc = func(gtx layout.Context, btn *widget.Clickable, text string, icon *widget.Icon) layout.Dimensions {
+	th := GetTheme()
 	item := component.MenuItem(th, btn, text)
 	item.Icon = icon
 	item.Hint = component.MenuHintText(th, "")
@@ -1259,7 +1253,6 @@ type StatusIcon struct {
 	Tooltip    component.Tooltip
 	TipArea    component.TipArea
 	Clickable  widget.Clickable
-	th         *material.Theme
 	button     component.TipIconButtonStyle
 }
 
@@ -1277,7 +1270,7 @@ type ClusterInfo struct {
 }
 
 type ResStatusInfo interface {
-	SetStatus(status StatusType, reason string, th *material.Theme)
+	SetStatus(status StatusType, reason string)
 	GetStatus() StatusType
 	GetReason() string
 	Layout(gtx layout.Context, size unit.Dp, inset *layout.Inset) layout.Dimensions
@@ -1288,8 +1281,8 @@ type ResStatus struct {
 	*StatusIcon
 }
 
-func (p *ResStatus) SetStatus(status StatusType, reason string, th *material.Theme) {
-	p.StatusIcon = NewStatusIcon(status, reason, th)
+func (p *ResStatus) SetStatus(status StatusType, reason string) {
+	p.StatusIcon = NewStatusIcon(status, reason)
 }
 
 type PodStatusInfo struct {
@@ -1297,14 +1290,16 @@ type PodStatusInfo struct {
 	ContainersInfo map[string]*PodContainerInfo
 }
 
-func (p *PodStatusInfo) SetContainerStatus(conName string, status StatusType, reason string, th *material.Theme) {
+func (p *PodStatusInfo) SetContainerStatus(conName string, status StatusType, reason string) {
 	p.ContainersInfo[conName] = &PodContainerInfo{
 		Name:       conName,
-		StatusIcon: NewStatusIcon(status, reason, th),
+		StatusIcon: NewStatusIcon(status, reason),
 	}
 }
 
-func NewStatusIcon(status StatusType, reason string, th *material.Theme) *StatusIcon {
+func NewStatusIcon(status StatusType, reason string) *StatusIcon {
+	th := GetTheme()
+
 	var icon *widget.Icon
 	var co color.NRGBA
 	var bg color.NRGBA
@@ -1348,7 +1343,6 @@ func NewStatusIcon(status StatusType, reason string, th *material.Theme) *Status
 		icon:       icon,
 		color:      co,
 		background: bg,
-		th:         th,
 	}
 
 	tipText := si.Reason
@@ -1359,7 +1353,7 @@ func NewStatusIcon(status StatusType, reason string, th *material.Theme) *Status
 
 	si.button = component.TipIconButtonStyle{
 		Tooltip:         si.Tooltip,
-		IconButtonStyle: material.IconButton(si.th, &si.Clickable, si.icon, tipText),
+		IconButtonStyle: material.IconButton(th, &si.Clickable, si.icon, tipText),
 		State:           &si.TipArea,
 	}
 	si.button.Color = si.color
@@ -1369,11 +1363,11 @@ func NewStatusIcon(status StatusType, reason string, th *material.Theme) *Status
 	return si
 }
 
-func NewPodStatusInfo(podName string, th *material.Theme) *PodStatusInfo {
+func NewPodStatusInfo(podName string) *PodStatusInfo {
 	return &PodStatusInfo{
 		ResStatus: &ResStatus{
 			ResName:    podName,
-			StatusIcon: NewStatusIcon(PodUnknown, "", th),
+			StatusIcon: NewStatusIcon(PodUnknown, ""),
 		},
 		ContainersInfo: make(map[string]*PodContainerInfo, 0),
 	}

@@ -15,17 +15,15 @@ type TextDialog struct {
 	editor         *ReadOnlyEditor
 	closeClickable widget.Clickable
 	onClose        func()
-	th             *material.Theme
 }
 
-func NewTextDialog(th *material.Theme, title string, subTitle string, content string, onClose func()) *TextDialog {
+func NewTextDialog(title string, subTitle string, content string, onClose func()) *TextDialog {
 	td := &TextDialog{
 		title:    title,
 		subTitle: subTitle,
 		onClose:  onClose,
-		th:       th,
 	}
-	td.editor = NewReadOnlyEditor(th, "content", 14, nil, false)
+	td.editor = NewReadOnlyEditor("content", 14, nil, false)
 	td.editor.SetText(&content, nil)
 	return td
 }
@@ -35,9 +33,11 @@ func (td *TextDialog) Layout(
 
 	children := make([]layout.FlexChild, 5)
 
+	th := GetTheme()
+
 	// 1 title
 	children[0] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		titleLb := material.Label(td.th, unit.Sp(24), td.title)
+		titleLb := material.Label(th, unit.Sp(24), td.title)
 		titleLb.Font.Weight = font.Bold
 		titleLb.Color = COLOR.Blue
 
@@ -48,15 +48,15 @@ func (td *TextDialog) Layout(
 
 	biggerOne := max(td.title, td.subTitle)
 
-	size := GetAboutWidth(gtx, td.th, biggerOne)
+	size := GetAboutWidth(gtx, biggerOne)
 
 	// 2 horizontal divider
 	children[1] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		if gtx.Constraints.Min.X == 0 {
 			gtx.Constraints.Min.X = size.Size.X
 		}
-		div := component.Divider(td.th)
-		div.Fill = td.th.Palette.ContrastBg
+		div := component.Divider(th)
+		div.Fill = th.Palette.ContrastBg
 		div.Top = unit.Dp(4)
 		div.Bottom = unit.Dp(4)
 
@@ -65,7 +65,7 @@ func (td *TextDialog) Layout(
 
 	// 3 subtitle
 	children[2] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return material.Body1(td.th, td.subTitle).Layout(gtx)
+		return material.Body1(th, td.subTitle).Layout(gtx)
 	})
 
 	// 4 content
@@ -81,14 +81,14 @@ func (td *TextDialog) Layout(
 
 		return layout.Inset{Top: unit.Dp(20), Bottom: unit.Dp(0)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				return layout.Center.Layout(gtx, material.Button(td.th, &td.closeClickable, "Close").Layout)
+				return layout.Center.Layout(gtx, material.Button(th, &td.closeClickable, "Close").Layout)
 			})
 		})
 	})
 
 	return layout.UniformInset(unit.Dp(30)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 
-		return component.Surface(td.th).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		return component.Surface(th).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			return layout.UniformInset(unit.Dp(20)).Layout(gtx,
 				func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{Axis: layout.Vertical}.Layout(gtx,

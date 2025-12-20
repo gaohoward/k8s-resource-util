@@ -20,6 +20,7 @@ func ShowFullCr() bool {
 	return statusCheckboxValue.Value
 }
 
+// need to pass the theme to avoid cyclic dependency in imports
 func GetActions(th *material.Theme) ([]component.AppBarAction, []component.OverflowAction) {
 	var actions = []component.AppBarAction{
 		{

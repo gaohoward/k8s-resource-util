@@ -49,7 +49,7 @@ func (cbar *ControlBar) SetActions(actions []component.AppBarAction) {
 	cbar.bar.SetActions(actions, cbar.globalOverflows)
 }
 
-func (cbar *ControlBar) init(m *component.ModalLayer, th *material.Theme) {
+func (cbar *ControlBar) init(m *component.ModalLayer) {
 	cbar.bar = component.NewAppBar(m)
 	cbar.bar.NavigationIcon = graphics.MenuIcon
 
@@ -59,7 +59,7 @@ func (cbar *ControlBar) init(m *component.ModalLayer, th *material.Theme) {
 			Tag:  cbar.overflowAbout,
 		},
 	}
-	actions, _ := graphics.GetActions(th)
+	actions, _ := graphics.GetActions(common.GetTheme())
 	cbar.SetActions(actions)
 }
 
@@ -91,7 +91,7 @@ type ResourceNavigator struct {
 	floatMenu      bool
 }
 
-func (navigator *ResourceNavigator) setup(gtx layout.Context, th *material.Theme) *layout.FlexChild {
+func (navigator *ResourceNavigator) setup(gtx layout.Context) *layout.FlexChild {
 
 	for _, event := range navigator.constrolBar.bar.Events(gtx) {
 		switch event := event.(type) {
@@ -112,17 +112,17 @@ func (navigator *ResourceNavigator) setup(gtx layout.Context, th *material.Theme
 	}
 
 	child := layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return navigator.constrolBar.bar.Layout(gtx, th, "Menu", "Actions")
+		return navigator.constrolBar.bar.Layout(gtx, common.GetTheme(), "Menu", "Actions")
 	})
 
 	return &child
 
 }
 
-func (navigator *ResourceNavigator) init(th *material.Theme) {
+func (navigator *ResourceNavigator) init() {
 	navigator.modal = component.NewModal()
 	// appbar and drawer share the modal
-	navigator.constrolBar.init(navigator.modal, th)
+	navigator.constrolBar.init(navigator.modal)
 	navigator.resourceDrawer.init(navigator.modal)
 	navigator.floatMenu = true
 
@@ -166,10 +166,11 @@ const (
 type AboutPanel struct {
 }
 
-func (a *AboutPanel) Layout(gtx layout.Context, th *material.Theme, isForInit bool) layout.Dimensions {
+func (a *AboutPanel) Layout(gtx layout.Context, isForInit bool) layout.Dimensions {
 
+	th := common.GetTheme()
 	label := material.Body1(th, APP_INTRO)
-	size := common.GetAboutWidth(gtx, th, APP_INTRO)
+	size := common.GetAboutWidth(gtx, APP_INTRO)
 
 	childrenSize := 3
 	if isForInit {
@@ -223,7 +224,7 @@ func (a *AboutPanel) Layout(gtx layout.Context, th *material.Theme, isForInit bo
 
 			progressBar := material.ProgressBar(th, progress)
 			progressBar.Height = unit.Dp(6)
-			gtx.Constraints.Max.X = common.GetAboutWidth(gtx, th, APP_INTRO).Size.X
+			gtx.Constraints.Max.X = common.GetAboutWidth(gtx, APP_INTRO).Size.X
 			if progressBar.Progress == 0.0 {
 				progressBar.Color = th.ContrastFg
 			} else {
@@ -249,10 +250,10 @@ func (appUi *AppUI) Init() []error {
 	appUi.ForceUpdate = false
 	// opentype.Parse()
 	appUi.theme.Shaper = text.NewShaper(text.WithCollection(gofont.Collection()))
-	appUi.resourceNavigator.init(appUi.theme)
+	appUi.resourceNavigator.init()
 
 	var err []error
-	appUi.resourceCollections, err = GetResourceCollections(&appUi.resourcePage, appUi.theme)
+	appUi.resourceCollections, err = GetResourceCollections(&appUi.resourcePage)
 	if len(err) > 0 {
 		return err
 	}
@@ -261,7 +262,7 @@ func (appUi *AppUI) Init() []error {
 
 	k8sClient := k8sservice.GetK8sService()
 
-	appUi.resourcePage.Init(k8sClient, appUi.RefreshCh, appUi.theme)
+	appUi.resourcePage.Init(k8sClient, appUi.RefreshCh)
 
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.9), nil)
 
@@ -282,14 +283,14 @@ func (appUi *AppUI) Init() []error {
 }
 
 func (appUi *AppUI) layoutResourceArea(gtx layout.Context) layout.Dimensions {
-	return appUi.resourcePage.Layout(gtx, appUi.theme)
+	return appUi.resourcePage.Layout(gtx)
 }
 
 func (appUi *AppUI) layoutPanelArea(gtx layout.Context) layout.Dimensions {
 	return appUi.panel.GetWidget()(gtx)
 }
 
-func (appUi *AppUI) setupAppBar(gtx layout.Context, th *material.Theme) *layout.FlexChild {
+func (appUi *AppUI) setupAppBar(gtx layout.Context) *layout.FlexChild {
 
 	// maybe move to init() so we can avoid the if check
 	if appUi.resourceNavigator.constrolBar.bar.Title == "" {
@@ -303,13 +304,13 @@ func (appUi *AppUI) setupAppBar(gtx layout.Context, th *material.Theme) *layout.
 		}
 	}
 
-	return appUi.resourceNavigator.setup(gtx, th)
+	return appUi.resourceNavigator.setup(gtx)
 
 }
 
 func (appUi *AppUI) setupCollections() *layout.Widget {
 	var collections layout.Widget = func(gtx layout.Context) layout.Dimensions {
-		return appUi.resourceCollections.Layout(gtx, appUi.theme)
+		return appUi.resourceCollections.Layout(gtx)
 	}
 	return &collections
 }
@@ -396,7 +397,7 @@ func (appUi *AppUI) Layout(gtx layout.Context) {
 			}),
 			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 				return component.Surface(appUi.theme).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return appUi.aboutPanel.Layout(gtx, appUi.theme, true)
+					return appUi.aboutPanel.Layout(gtx, true)
 				})
 			}),
 		)
@@ -419,7 +420,7 @@ func (appUi *AppUI) Layout(gtx layout.Context) {
 	}
 
 	flex := layout.Flex{Axis: layout.Vertical}
-	bar := appUi.setupAppBar(gtx, appUi.theme)
+	bar := appUi.setupAppBar(gtx)
 
 	cols := appUi.setupCollections()
 	content := appUi.setupMainContent()
@@ -473,7 +474,7 @@ func (appUi *AppUI) Layout(gtx layout.Context) {
 			}),
 			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 				return component.Surface(appUi.theme).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-					return appUi.aboutPanel.Layout(gtx, appUi.theme, false)
+					return appUi.aboutPanel.Layout(gtx, false)
 				})
 			}),
 		)
@@ -483,7 +484,7 @@ func (appUi *AppUI) Layout(gtx layout.Context) {
 
 	appUi.resourceNavigator.modal.Layout(gtx, appUi.theme)
 
-	dialogs.LayoutDialogs(gtx, appUi.theme)
+	dialogs.LayoutDialogs(gtx)
 }
 
 func (appUi *AppUI) InitDone() bool {
@@ -514,7 +515,7 @@ func NewAppUI(logger *zap.Logger) *AppUI {
 
 	appUI := &AppUI{
 		Logger:       logger,
-		theme:        material.NewTheme(),
+		theme:        common.GetTheme(),
 		resourcePage: ResourcePage{},
 	}
 

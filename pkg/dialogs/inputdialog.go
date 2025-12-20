@@ -3,6 +3,7 @@ package dialogs
 import (
 	"image/color"
 
+	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/logs"
 	"gioui.org/font"
 	"gioui.org/io/key"
@@ -21,7 +22,7 @@ func init() {
 }
 
 type DialogControl interface {
-	GetWidget(th *material.Theme) layout.Widget
+	GetWidget() layout.Widget
 	Apply() error
 	Cancel()
 }
@@ -126,7 +127,7 @@ func NewInputDialog(title string, control DialogControl) *InputDialog {
 				// }
 			}),
 			//the main widget
-			layout.Flexed(1, dialog.mainPanel.GetWidget(th)),
+			layout.Flexed(1, dialog.mainPanel.GetWidget()),
 
 			// submit buttons
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -148,8 +149,8 @@ func NewInputDialog(title string, control DialogControl) *InputDialog {
 	return dialog
 }
 
-func (dlg *InputDialog) Layout(gtx layout.Context, th *material.Theme) {
-	dlg.sheet.Modal.Layout(gtx, th)
+func (dlg *InputDialog) Layout(gtx layout.Context) {
+	dlg.sheet.Modal.Layout(gtx, common.GetTheme())
 }
 
 func (dlg *InputDialog) Show(gtx layout.Context) {
@@ -162,8 +163,8 @@ func RegisterDialog(d *InputDialog) {
 	dialogRegistry = append(dialogRegistry, d)
 }
 
-func LayoutDialogs(gtx layout.Context, th *material.Theme) {
+func LayoutDialogs(gtx layout.Context) {
 	for _, d := range dialogRegistry {
-		d.Layout(gtx, th)
+		d.Layout(gtx)
 	}
 }

@@ -384,10 +384,10 @@ func MarshalYaml(item *unstructured.Unstructured) (string, error) {
 	return string(bytes), err
 }
 
-func GetAboutWidth(gtx layout.Context, th *material.Theme, headline string) layout.Dimensions {
+func GetAboutWidth(gtx layout.Context, headline string) layout.Dimensions {
 
 	macro := op.Record(gtx.Ops)
-	label := material.Body1(th, headline)
+	label := material.Body1(GetTheme(), headline)
 	label.TextSize = unit.Sp(16)
 	label.Font.Weight = font.Bold
 	size := label.Layout(gtx)
@@ -436,8 +436,8 @@ func (sb *SearchBar) GetText() string {
 	return sb.searchArea.Text()
 }
 
-func (sb *SearchBar) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	editor := material.Editor(th, &sb.searchArea, "search text")
+func (sb *SearchBar) Layout(gtx layout.Context) layout.Dimensions {
+	editor := material.Editor(GetTheme(), &sb.searchArea, "search text")
 	editor.Font.Weight = font.Bold
 	editor.Color = COLOR.Blue
 

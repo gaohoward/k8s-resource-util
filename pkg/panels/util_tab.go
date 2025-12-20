@@ -22,7 +22,7 @@ var EMPTY_STRING = ""
 type Tool interface {
 	GetClickable() *widget.Clickable
 	GetName() string
-	GetTabButtons(th *material.Theme) []layout.FlexChild
+	GetTabButtons() []layout.FlexChild
 	GetWidget() layout.Widget
 }
 
@@ -49,7 +49,7 @@ func (p *ToolsTab) GetClickable() *widget.Clickable {
 }
 
 // GetTabButtons implements PanelTab.
-func (p *ToolsTab) GetTabButtons(th *material.Theme) []layout.FlexChild {
+func (p *ToolsTab) GetTabButtons() []layout.FlexChild {
 	return p.rigidButtons
 }
 
@@ -89,7 +89,7 @@ func (rat *RawApiTool) GetName() string {
 	return "raw-api"
 }
 
-func (rat *RawApiTool) GetTabButtons(th *material.Theme) []layout.FlexChild {
+func (rat *RawApiTool) GetTabButtons() []layout.FlexChild {
 	return nil
 }
 
@@ -97,8 +97,10 @@ func (rat *RawApiTool) GetWidget() layout.Widget {
 	return rat.widget
 }
 
-func NewToolsTab(th *material.Theme, client k8sservice.K8sService) *ToolsTab {
+func NewToolsTab(client k8sservice.K8sService) *ToolsTab {
 	tab := &ToolsTab{}
+
+	th := common.GetTheme()
 
 	tab.rigidButtons = make([]layout.FlexChild, 0)
 
@@ -122,8 +124,8 @@ func NewToolsTab(th *material.Theme, client k8sservice.K8sService) *ToolsTab {
 
 	tab.tools = make([]Tool, 0)
 
-	tab.tools = append(tab.tools, NewConvertTool(th), NewRawApiTool(th, client))
-	if rt, err := NewReaderTool(th); err == nil {
+	tab.tools = append(tab.tools, NewConvertTool(), NewRawApiTool(client))
+	if rt, err := NewReaderTool(); err == nil {
 		tab.tools = append(tab.tools, rt)
 	}
 
@@ -165,7 +167,7 @@ func NewToolsTab(th *material.Theme, client k8sservice.K8sService) *ToolsTab {
 	toolsBar = append(toolsBar, child0)
 
 	//type should be layout.Rigid
-	rigidButtons := tab.currentTool.GetTabButtons(th)
+	rigidButtons := tab.currentTool.GetTabButtons()
 
 	toolsBar = append(toolsBar, rigidButtons...)
 
@@ -197,12 +199,14 @@ func NewToolsTab(th *material.Theme, client k8sservice.K8sService) *ToolsTab {
 // in raw http format, i.e. the kubectl raw option, for example
 // kubectl get --raw "/apis/subresources.kubevirt.io"
 // or "/apis/subresources.kubevirt.io/v1/guestfs"
-func NewRawApiTool(th *material.Theme, client k8sservice.K8sService) *RawApiTool {
+func NewRawApiTool(client k8sservice.K8sService) *RawApiTool {
+	th := common.GetTheme()
+
 	rt := &RawApiTool{
 		kubeClient: client,
 	}
 
-	rt.result = common.NewReadOnlyEditor(th, "result", 16, nil, true)
+	rt.result = common.NewReadOnlyEditor("result", 16, nil, true)
 
 	rt.uriField.SingleLine = true
 	rt.uriField.Submit = true

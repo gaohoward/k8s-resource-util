@@ -174,3 +174,13 @@ var CaseSensitiveIcon *widget.Icon = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.EditorTextFields)
 	return icon
 }()
+
+var AddCircleIcon *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ContentAddCircle)
+	return icon
+}()
+
+var OpenNewIcon *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.FileFolderOpen)
+	return icon
+}()

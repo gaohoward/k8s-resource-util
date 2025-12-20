@@ -35,10 +35,10 @@ type ResourceDetail struct {
 	isSelected bool
 }
 
-func NewDetail(th *material.Theme, name string, item *unstructured.Unstructured) *ResourceDetail {
+func NewDetail(name string, item *unstructured.Unstructured) *ResourceDetail {
 	d := &ResourceDetail{
 		detailName: name,
-		label:      material.H6(th, name),
+		label:      material.H6(common.GetTheme(), name),
 		item:       item,
 	}
 	d.label.TextSize = unit.Sp(16)
@@ -84,12 +84,12 @@ func (dd *DescribeDetail) Save(baseDir string, kind string, name string, ns stri
 	logger.Info("successfully saved described file", zap.String("path", filePath))
 }
 
-func NewDescribeDetail(th *material.Theme, item *unstructured.Unstructured) common.IResourceDetail {
+func NewDescribeDetail(item *unstructured.Unstructured) common.IResourceDetail {
 	d := &DescribeDetail{
-		ResourceDetail: NewDetail(th, "describe", item),
+		ResourceDetail: NewDetail("describe", item),
 	}
 
-	d.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil, true)
+	d.contentEditor = common.NewReadOnlyEditor("describe", 16, nil, true)
 
 	d.contentEditor.SetText(d.getDescribeContent(), nil)
 
@@ -137,9 +137,9 @@ func (yd *YamlDetail) Save(baseDir string, kind string, name string, ns string) 
 	logger.Info("successfully saved yaml file", zap.String("path", filePath))
 }
 
-func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) common.IResourceDetail {
+func NewYamlDetail(item *unstructured.Unstructured) common.IResourceDetail {
 	d := &YamlDetail{
-		ResourceDetail: NewDetail(th, "yaml", item),
+		ResourceDetail: NewDetail("yaml", item),
 	}
 
 	yamlStr, err := common.MarshalYaml(item)
@@ -150,7 +150,7 @@ func NewYamlDetail(th *material.Theme, item *unstructured.Unstructured) common.I
 		d.yamlContent = yamlStr
 	}
 
-	d.ymlEditor = common.NewReadOnlyEditor(th, "Yaml", 16, nil, true)
+	d.ymlEditor = common.NewReadOnlyEditor("Yaml", 16, nil, true)
 	d.ymlEditor.SetText(&d.yamlContent, nil)
 
 	return d
@@ -174,7 +174,6 @@ type PodLogDetail struct {
 	conLogList layout.List
 	logEditor  *common.ReadOnlyEditor
 	divider    component.DividerStyle
-	theme      *material.Theme
 
 	bufferLimit int //current the ui can't handle large block of text, so we have a limit here
 }
@@ -462,7 +461,7 @@ func (r *ReloadLogAction) GetClickable() *widget.Clickable {
 }
 
 // GetMenuOption implements common.MenuAction.
-func (r *ReloadLogAction) GetMenuOption(th *material.Theme) func(gtx layout.Context) layout.Dimensions {
+func (r *ReloadLogAction) GetMenuOption() func(gtx layout.Context) layout.Dimensions {
 	return r.MenuFunc
 }
 
@@ -471,18 +470,19 @@ func (r *ReloadLogAction) GetName() string {
 	return r.Name
 }
 
-func NewReloadLogAction(th *material.Theme, logDetail *PodLogDetail) *ReloadLogAction {
+func NewReloadLogAction(logDetail *PodLogDetail) *ReloadLogAction {
 	reloadAct := &ReloadLogAction{
 		Name:   "Reload",
 		podLog: logDetail,
 	}
 	reloadAct.MenuFunc = func(gtx layout.Context) layout.Dimensions {
-		return common.ItemFunc(th, gtx, &reloadAct.btn, reloadAct.Name, graphics.ReloadIcon)
+		return common.ItemFunc(gtx, &reloadAct.btn, reloadAct.Name, graphics.ReloadIcon)
 	}
 	return reloadAct
 }
 
-func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) error {
+func (pd *PodLogDetail) Init(status common.ResStatusInfo) error {
+	th := common.GetTheme()
 	cons, err := common.GetPodContainers(pd.item)
 	if err != nil {
 		logger.Warn("Failed to get pod containers", zap.Error(err))
@@ -509,10 +509,10 @@ func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) er
 	}
 
 	actions := make([]common.MenuAction, 0)
-	reloadLogAct := NewReloadLogAction(th, pd)
+	reloadLogAct := NewReloadLogAction(pd)
 	actions = append(actions, reloadLogAct)
 
-	pd.logEditor = common.NewReadOnlyEditor(th, "log", 16, actions, true)
+	pd.logEditor = common.NewReadOnlyEditor("log", 16, actions, true)
 
 	pd.divider = component.Divider(th)
 	pd.divider.Fill = common.COLOR.Gray
@@ -520,18 +520,16 @@ func (pd *PodLogDetail) Init(th *material.Theme, status common.ResStatusInfo) er
 	pd.divider.Inset.Top = 0
 	pd.divider.Bottom = unit.Dp(10)
 
-	pd.theme = th
-
 	return nil
 }
 
-func NewPodLogDetail(item *unstructured.Unstructured, th *material.Theme, status common.ResStatusInfo) (*PodLogDetail, error) {
+func NewPodLogDetail(item *unstructured.Unstructured, status common.ResStatusInfo) (*PodLogDetail, error) {
 	pd := &PodLogDetail{
-		ResourceDetail: NewDetail(th, "logs", item),
+		ResourceDetail: NewDetail("logs", item),
 		containerLogs:  make([]*ContainerLog, 0),
 		bufferLimit:    1024 * 1024 * 10,
 	}
-	err := pd.Init(th, status)
+	err := pd.Init(status)
 	if err != nil {
 		return nil, err
 	}
@@ -539,11 +537,11 @@ func NewPodLogDetail(item *unstructured.Unstructured, th *material.Theme, status
 	return pd, nil
 }
 
-func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, status common.ResStatusInfo) []common.IResourceDetail {
+func GetExtApiDetails(item *unstructured.Unstructured, status common.ResStatusInfo) []common.IResourceDetail {
 	result := make([]common.IResourceDetail, 0)
 
 	if item.GetKind() == "Pod" {
-		podDetail, err := NewPodLogDetail(item, th, status)
+		podDetail, err := NewPodLogDetail(item, status)
 		if err != nil {
 			logger.Warn("Failed to create pod log detail", zap.Error(err))
 		} else {
@@ -562,11 +560,11 @@ func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, statu
 		}
 
 		if secret.Type == corev1.SecretTypeTLS {
-			result = append(result, NewSecretTlsDetail(secret, th, item))
+			result = append(result, NewSecretTlsDetail(secret, item))
 		}
 
 		if len(secret.Data) > 0 {
-			result = append(result, NewSecretDataDetail(secret, th, item))
+			result = append(result, NewSecretDataDetail(secret, item))
 		}
 	}
 
@@ -583,7 +581,7 @@ func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, statu
 		if configMap.Data != nil {
 			for _, v := range configMap.Data {
 				if strings.HasPrefix(v, "-----BEGIN CERTIFICATE-----") {
-					result = append(result, NewConfigMapCertDetail(configMap, th, item))
+					result = append(result, NewConfigMapCertDetail(configMap, item))
 					break
 				}
 			}
@@ -593,13 +591,13 @@ func GetExtApiDetails(item *unstructured.Unstructured, th *material.Theme, statu
 	return result
 }
 
-func NewConfigMapCertDetail(cm *corev1.ConfigMap, th *material.Theme, item *unstructured.Unstructured) *ConfigMapCertDetail {
+func NewConfigMapCertDetail(cm *corev1.ConfigMap, item *unstructured.Unstructured) *ConfigMapCertDetail {
 	cmcd := &ConfigMapCertDetail{
-		ResourceDetail: NewDetail(th, "cert", item),
+		ResourceDetail: NewDetail("cert", item),
 		configMap:      cm,
 	}
 
-	cmcd.editor = common.NewReadOnlyEditor(th, "cert", 16, nil, true)
+	cmcd.editor = common.NewReadOnlyEditor("cert", 16, nil, true)
 
 	cmcd.editor.SetText(cmcd.getCertContent(), nil)
 
@@ -656,13 +654,13 @@ func (cmcd *ConfigMapCertDetail) getCertContent() *string {
 	return &result
 }
 
-func NewSecretDataDetail(secret *corev1.Secret, th *material.Theme, item *unstructured.Unstructured) *SecretDataDetail {
+func NewSecretDataDetail(secret *corev1.Secret, item *unstructured.Unstructured) *SecretDataDetail {
 	sdd := &SecretDataDetail{
-		ResourceDetail: NewDetail(th, "data", item),
+		ResourceDetail: NewDetail("data", item),
 		Secret:         secret,
 	}
 
-	sdd.editor = common.NewReadOnlyEditor(th, "data", 16, nil, true)
+	sdd.editor = common.NewReadOnlyEditor("data", 16, nil, true)
 
 	sdd.editor.SetText(sdd.getDecodedData(), nil)
 
@@ -697,14 +695,14 @@ func (sdd *SecretDataDetail) getDecodedData() *string {
 	return &result
 }
 
-func NewSecretTlsDetail(secret *corev1.Secret, th *material.Theme, item *unstructured.Unstructured) *SecretTlsDetail {
+func NewSecretTlsDetail(secret *corev1.Secret, item *unstructured.Unstructured) *SecretTlsDetail {
 	sd := &SecretTlsDetail{
-		ResourceDetail: NewDetail(th, "cert", item),
+		ResourceDetail: NewDetail("cert", item),
 		Secret:         secret,
 		content:        "",
 	}
 
-	sd.contentEditor = common.NewReadOnlyEditor(th, "describe", 16, nil, true)
+	sd.contentEditor = common.NewReadOnlyEditor("describe", 16, nil, true)
 
 	sd.contentEditor.SetText(sd.getCertContent(), nil)
 

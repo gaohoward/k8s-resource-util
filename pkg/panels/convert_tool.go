@@ -466,7 +466,7 @@ func (b *Base64DecodeConverter) GetName() string {
 	return "base64Decode"
 }
 
-func CreateConverter(kind ConvertKind, th *material.Theme, options map[string]string) (Converter, error) {
+func CreateConverter(kind ConvertKind, options map[string]string) (Converter, error) {
 	switch kind {
 	case jwtKind:
 		return &JwtConverter{}, nil
@@ -477,26 +477,26 @@ func CreateConverter(kind ConvertKind, th *material.Theme, options map[string]st
 	case x509CertDecodeKind:
 		return &X509CertDecodeConverter{}, nil
 	case x509CertGenKind:
-		return NewX509CertGenerator(th, options)
+		return NewX509CertGenerator(options)
 	}
 	return nil, nil
 }
 
-func NewConversion(src *Conversion, kind ConvertKind, th *material.Theme, options map[string]string) (*Conversion, error) {
+func NewConversion(src *Conversion, kind ConvertKind, options map[string]string) (*Conversion, error) {
 	c := &Conversion{
 		origin: src,
 	}
 	c.widList.Axis = layout.Vertical
 	var err error
-	c.converter, err = CreateConverter(kind, th, options)
+	c.converter, err = CreateConverter(kind, options)
 	if err != nil {
 		return nil, err
 	}
 	return c, nil
 }
 
-func (cnb *CommonNodeBase) AddConversion(src *Conversion, kind ConvertKind, th *material.Theme, options map[string]string) (*Conversion, error) {
-	conv, err := NewConversion(src, kind, th, options)
+func (cnb *CommonNodeBase) AddConversion(src *Conversion, kind ConvertKind, options map[string]string) (*Conversion, error) {
+	conv, err := NewConversion(src, kind, options)
 	if err != nil {
 		return nil, err
 	}
@@ -556,9 +556,9 @@ func (k *ConvertKind) GetOptionKeysAndValues() (string, string, []string, []stri
 	return "", "", nil, nil, nil
 }
 
-func (c *ConvertAction) DoFor(gtx layout.Context, ct *ConvertTool, options map[string]string, th *material.Theme) error {
+func (c *ConvertAction) DoFor(gtx layout.Context, ct *ConvertTool, options map[string]string) error {
 	if ct.currentItem != nil {
-		newconv, err := ct.currentItem.AddConversion(ct.currentItem, c.kind, th, options)
+		newconv, err := ct.currentItem.AddConversion(ct.currentItem, c.kind, options)
 		if err != nil {
 			return err
 		}
@@ -620,7 +620,7 @@ func (c *ConvertTool) NewConversionItem() {
 	c.convList = append(c.convList, NewRootConversion("Hello World!"))
 }
 
-func (c *ConvertTool) GetBarButtons(th *material.Theme) []layout.FlexChild {
+func (c *ConvertTool) GetBarButtons() []layout.FlexChild {
 	children := make([]layout.FlexChild, 0)
 	children = append(children, layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 		return layout.Inset{Top: unit.Dp(10)}.Layout(gtx,
@@ -630,7 +630,7 @@ func (c *ConvertTool) GetBarButtons(th *material.Theme) []layout.FlexChild {
 				}
 				button := component.TipIconButtonStyle{
 					Tooltip:         c.newTargetBtnTooltip,
-					IconButtonStyle: material.IconButton(th, &c.newTargetClickable, graphics.AddIcon, "New"),
+					IconButtonStyle: material.IconButton(common.GetTheme(), &c.newTargetClickable, graphics.AddIcon, "New"),
 					State:           &c.newTargetBtnTipArea,
 				}
 
@@ -654,7 +654,7 @@ func (c *ConvertTool) GetName() string {
 	return "convert"
 }
 
-func (c *ConvertTool) GetTabButtons(th *material.Theme) []layout.FlexChild {
+func (c *ConvertTool) GetTabButtons() []layout.FlexChild {
 	return []layout.FlexChild{}
 }
 
@@ -684,7 +684,7 @@ func (c *ConvertTool) updateConversionPanel() {
 	}
 }
 
-func (c *ConvertTool) layoutConversion(th *material.Theme, gtx layout.Context, conv *Conversion) layout.Dimensions {
+func (c *ConvertTool) layoutConversion(gtx layout.Context, conv *Conversion) layout.Dimensions {
 
 	if conv.clickable.Clicked(gtx) {
 		if c.currentItem != conv {
@@ -696,17 +696,19 @@ func (c *ConvertTool) layoutConversion(th *material.Theme, gtx layout.Context, c
 	selected := c.currentItem == conv
 
 	if len(conv.conversions) == 0 {
-		return LeafClickableLabel(gtx, conv.GetClickable(), th, conv.GetName(), selected)
+		return LeafClickableLabel(gtx, conv.GetClickable(), conv.GetName(), selected)
 	}
+
+	th := common.GetTheme()
 
 	return component.SimpleDiscloser(th, &conv.discloserState).Layout(gtx,
 		func(gtx layout.Context) layout.Dimensions {
-			return ClickableLabel(gtx, conv.GetClickable(), th, conv.GetName(), selected)
+			return ClickableLabel(gtx, conv.GetClickable(), conv.GetName(), selected)
 		},
 		func(gtx layout.Context) layout.Dimensions {
 			return material.List(th, &conv.widList).Layout(gtx, len(conv.conversions),
 				func(gtx layout.Context, index int) layout.Dimensions {
-					return c.layoutConversion(th, gtx, conv.conversions[index])
+					return c.layoutConversion(gtx, conv.conversions[index])
 				})
 		},
 	)
@@ -751,7 +753,7 @@ func (c *ConvertTool) NewX509CertGen() *ConvertAction {
 	}
 }
 
-func NewX509CertGenerator(th *material.Theme, options map[string]string) (*X509CertGenConverter, error) {
+func NewX509CertGenerator(options map[string]string) (*X509CertGenConverter, error) {
 	var rsaKey *rsa.PrivateKey
 	var ecdsaPrivKey *ecdsa.PrivateKey
 	var err error
@@ -783,7 +785,7 @@ func NewX509CertGenerator(th *material.Theme, options map[string]string) (*X509C
 		ecdsaKey: ecdsaPrivKey,
 	}
 
-	c.configEditor = common.NewReadOnlyEditor(th, "", 16, nil, true)
+	c.configEditor = common.NewReadOnlyEditor("", 16, nil, true)
 	builder := strings.Builder{}
 	if len(options) > 0 {
 		for k, v := range options {
@@ -798,7 +800,7 @@ func NewX509CertGenerator(th *material.Theme, options map[string]string) (*X509C
 	return c, nil
 }
 
-func (c *ConvertTool) initMenu(th *material.Theme) {
+func (c *ConvertTool) initMenu() {
 
 	convMenuItems := make([]func(gtx layout.Context) layout.Dimensions, 0)
 
@@ -806,7 +808,7 @@ func (c *ConvertTool) initMenu(th *material.Theme) {
 	c.actions = append(c.actions, c.NewBase64(), c.NewBase64Decode(), c.NewCertDecode(), c.NewX509CertGen(), c.NewJwt())
 
 	for _, a := range c.actions {
-		convMenuItems = append(convMenuItems, component.MenuItem(th, &a.clickable, a.name).Layout)
+		convMenuItems = append(convMenuItems, component.MenuItem(common.GetTheme(), &a.clickable, a.name).Layout)
 	}
 
 	c.menuState = component.MenuState{
@@ -814,14 +816,14 @@ func (c *ConvertTool) initMenu(th *material.Theme) {
 	}
 }
 
-func NewConvertTool(th *material.Theme) Tool {
+func NewConvertTool() Tool {
 	c := &ConvertTool{}
-	c.newTargetBtnTooltip = component.DesktopTooltip(th, "New")
+	c.newTargetBtnTooltip = component.DesktopTooltip(common.GetTheme(), "New")
 	c.convWidgetList.Axis = layout.Vertical
-	c.targetEditor = common.NewReadOnlyEditor(th, "", 16, nil, true)
+	c.targetEditor = common.NewReadOnlyEditor("", 16, nil, true)
 	c.optDialog = common.NewOptionDialog("", "", nil, nil, nil)
 
-	c.initMenu(th)
+	c.initMenu()
 
 	//simulate loaded converions
 	c.loadConversions()
@@ -836,21 +838,23 @@ func NewConvertTool(th *material.Theme) Tool {
 					c.optDialog.SetCallback(func(actionType common.ActionType, options map[string]string) {
 						c.showDialog = false
 						if actionType == common.OK {
-							a.DoFor(gtx, c, options, th)
+							a.DoFor(gtx, c, options)
 						}
 					})
 					c.showDialog = true
 				} else {
-					a.DoFor(gtx, c, nil, th)
+					a.DoFor(gtx, c, nil)
 				}
 			}
 		}
+
+		th := common.GetTheme()
 
 		return layout.Stack{}.Layout(gtx,
 			layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 				return material.List(th, &c.convWidgetList).Layout(gtx, len(c.convList), func(gtx layout.Context, index int) layout.Dimensions {
 					item := c.convList[index]
-					return c.layoutConversion(th, gtx, item)
+					return c.layoutConversion(gtx, item)
 				})
 			}),
 			layout.Expanded(func(gtx layout.Context) layout.Dimensions {
@@ -887,7 +891,7 @@ func NewConvertTool(th *material.Theme) Tool {
 							// the buttons on the bar
 							layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 								return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-									c.GetBarButtons(th)...,
+									c.GetBarButtons()...,
 								)
 							}),
 						)
@@ -906,6 +910,7 @@ func NewConvertTool(th *material.Theme) Tool {
 	c.conversionTopBar.LineHeightScale = 0.8
 	c.conversionTopBar.ReadOnly = true
 
+	th := common.GetTheme()
 	// it has a top bar showing conversion source and target
 	// below it the split: the left shows the source content
 	// the right shows the converted content
@@ -957,7 +962,7 @@ func NewConvertTool(th *material.Theme) Tool {
 	c.widget = func(gtx layout.Context) layout.Dimensions {
 
 		if c.showDialog {
-			return c.optDialog.Layout(gtx, th)
+			return c.optDialog.Layout(gtx)
 		}
 
 		return c.resize.Layout(gtx, leftPart, rightPart, common.VerticalSplitHandler)
@@ -965,7 +970,7 @@ func NewConvertTool(th *material.Theme) Tool {
 	return c
 }
 
-func LeafClickableLabel(gtx layout.Context, clickable *widget.Clickable, th *material.Theme, name string, selected bool) layout.Dimensions {
+func LeafClickableLabel(gtx layout.Context, clickable *widget.Clickable, name string, selected bool) layout.Dimensions {
 	return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			gtx.Constraints.Max = image.Point{X: 16, Y: 16}
@@ -980,7 +985,7 @@ func LeafClickableLabel(gtx layout.Context, clickable *widget.Clickable, th *mat
 		}),
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return material.Clickable(gtx, clickable, func(gtx layout.Context) layout.Dimensions {
-				flatBtnText := material.Body1(th, name)
+				flatBtnText := material.Body1(common.GetTheme(), name)
 				if selected {
 					flatBtnText.Font.Weight = font.Bold
 				} else {
@@ -992,10 +997,10 @@ func LeafClickableLabel(gtx layout.Context, clickable *widget.Clickable, th *mat
 	)
 }
 
-func ClickableLabel(gtx layout.Context, clickable *widget.Clickable, th *material.Theme, name string, selected bool) layout.Dimensions {
+func ClickableLabel(gtx layout.Context, clickable *widget.Clickable, name string, selected bool) layout.Dimensions {
 	return material.Clickable(gtx, clickable, func(gtx layout.Context) layout.Dimensions {
 		return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			flatBtnText := material.Body1(th, name)
+			flatBtnText := material.Body1(common.GetTheme(), name)
 			if selected {
 				flatBtnText.Font.Weight = font.Bold
 			} else {

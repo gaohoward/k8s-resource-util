@@ -140,7 +140,7 @@ func (adc *AddResourceDialogControl) GetTitle() string {
 	return adc.action.getActionTitle()
 }
 
-func (adc *AddResourceDialogControl) GetWidget(th *material.Theme) layout.Widget {
+func (adc *AddResourceDialogControl) GetWidget() layout.Widget {
 	return adc.panel
 }
 
@@ -317,12 +317,12 @@ func (a *AddResourceDialogControl) RequestFocusOnce(gtx layout.Context) {
 	}
 }
 
-func NewAddCollectionDialogControl(th *material.Theme) *AddResourceDialogControl {
+func NewAddCollectionDialogControl() *AddResourceDialogControl {
 	control := &AddResourceDialogControl{
 		action: AddCollection,
 		path:   "",
 	}
-	control.tree = resourceCollections.CloneForInput(th)
+	control.tree = resourceCollections.CloneForInput()
 	control.tree.AddListener(control)
 
 	control.nameInput.SingleLine = true
@@ -330,14 +330,14 @@ func NewAddCollectionDialogControl(th *material.Theme) *AddResourceDialogControl
 
 	control.panel = func(gtx layout.Context) layout.Dimensions {
 
-		control.setupLocationLabel(th)
+		control.setupLocationLabel()
 
 		control.RequestFocusOnce(gtx)
 
 		// name, type, and location(repo path)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return control.nameInput.Layout(gtx, th, "Name of the collection")
+				return control.nameInput.Layout(gtx, common.GetTheme(), "Name of the collection")
 			}),
 			layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -347,7 +347,7 @@ func NewAddCollectionDialogControl(th *material.Theme) *AddResourceDialogControl
 					}),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						//tree
-						return control.tree.LayoutForInput(gtx, th)
+						return control.tree.LayoutForInput(gtx)
 					}),
 				)
 			}),
@@ -408,7 +408,7 @@ func (mc *MoveControl) Reorder(btIdx int, source *ReorderPanel) {
 	}
 }
 
-func (mc *MoveControl) Layout(gtx layout.Context, th *material.Theme, source *ReorderPanel) layout.Dimensions {
+func (mc *MoveControl) Layout(gtx layout.Context, source *ReorderPanel) layout.Dimensions {
 
 	return mc.ButtonList.Layout(gtx, 5, func(gtx layout.Context, index int) layout.Dimensions {
 
@@ -422,7 +422,7 @@ func (mc *MoveControl) Layout(gtx layout.Context, th *material.Theme, source *Re
 			mc.Reorder(index, source)
 		}
 		icon := mc.iconList[index]
-		ibtn := material.IconButton(th, btn, icon, "mv")
+		ibtn := material.IconButton(common.GetTheme(), btn, icon, "mv")
 		ibtn.Inset.Top = 0
 		ibtn.Inset.Bottom = 0
 		ibtn.Inset.Left = 0
@@ -541,7 +541,7 @@ func (rp *ReorderPanel) SetCurrentCollection(col *common.Collection) {
 	rp.reorderMap[col.Id] = items
 }
 
-func (rp *ReorderPanel) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (rp *ReorderPanel) Layout(gtx layout.Context) layout.Dimensions {
 	if rp.owner.tree.currentNode != nil {
 		if col, ok := rp.owner.tree.currentNode.(*common.Collection); ok {
 
@@ -550,7 +550,7 @@ func (rp *ReorderPanel) Layout(gtx layout.Context, th *material.Theme) layout.Di
 			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 					// The control bar (change order)
-					return rp.moveControl.Layout(gtx, th, rp)
+					return rp.moveControl.Layout(gtx, rp)
 				}),
 				layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
 					// The resource order list
@@ -564,7 +564,7 @@ func (rp *ReorderPanel) Layout(gtx layout.Context, th *material.Theme) layout.Di
 										Bottom: unit.Dp(1),
 										Left:   0,
 										Right:  unit.Dp(8)}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-										return material.Label(th, unit.Sp(16), fmt.Sprintf("%2d", index)).Layout(gtx)
+										return material.Label(common.GetTheme(), unit.Sp(16), fmt.Sprintf("%2d", index)).Layout(gtx)
 									})
 								}),
 								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -572,7 +572,7 @@ func (rp *ReorderPanel) Layout(gtx layout.Context, th *material.Theme) layout.Di
 										rp.currentTarget = index
 									}
 									return material.Clickable(gtx, thisBtn, func(gtx layout.Context) layout.Dimensions {
-										label := material.Label(th, unit.Sp(16), thisRes.GetLabel())
+										label := material.Label(common.GetTheme(), unit.Sp(16), thisRes.GetLabel())
 										label.Font.Weight = font.Normal
 										if rp.currentTarget != -1 {
 											res, _ := rp.currentItems.Get(rp.currentTarget)
@@ -587,16 +587,16 @@ func (rp *ReorderPanel) Layout(gtx layout.Context, th *material.Theme) layout.Di
 						})
 					}
 					//no resources
-					return material.H6(th, "No resources").Layout(gtx)
+					return material.H6(common.GetTheme(), "No resources").Layout(gtx)
 				}),
 			)
 		}
 		return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return material.H6(th, "The current selection is not a collection").Layout(gtx)
+			return material.H6(common.GetTheme(), "The current selection is not a collection").Layout(gtx)
 		})
 	}
 	return layout.Center.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		return material.H6(th, "Please select a collection").Layout(gtx)
+		return material.H6(common.GetTheme(), "Please select a collection").Layout(gtx)
 	})
 }
 
@@ -636,12 +636,12 @@ func (c *AddResourceDialogControl) GetWidgetForReorder() *ReorderPanel {
 	return rp
 }
 
-func NewReorderDialogControl(th *material.Theme) *AddResourceDialogControl {
+func NewReorderDialogControl() *AddResourceDialogControl {
 	control := &AddResourceDialogControl{
 		action: Reorder,
 		path:   "",
 	}
-	control.tree = resourceCollections.CloneForInput(th)
+	control.tree = resourceCollections.CloneForInput()
 	control.tree.AddListener(control)
 
 	reorderComp := control.GetWidgetForReorder()
@@ -649,12 +649,12 @@ func NewReorderDialogControl(th *material.Theme) *AddResourceDialogControl {
 
 	control.panel = func(gtx layout.Context) layout.Dimensions {
 
-		control.setupLocationLabel(th)
+		control.setupLocationLabel()
 
 		// name, type, and location(repo path)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Flexed(0.4, func(gtx layout.Context) layout.Dimensions {
-				return reorderComp.Layout(gtx, th)
+				return reorderComp.Layout(gtx)
 			}),
 			layout.Flexed(0.6, func(gtx layout.Context) layout.Dimensions {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -664,7 +664,7 @@ func NewReorderDialogControl(th *material.Theme) *AddResourceDialogControl {
 					}),
 					layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
 						//tree
-						return control.tree.LayoutForInput(gtx, th)
+						return control.tree.LayoutForInput(gtx)
 					}),
 				)
 			}),
@@ -680,7 +680,7 @@ type ApiResourceControl struct {
 	clickable    widget.Clickable
 }
 
-func NewAddTemplateDialogControl(th *material.Theme, actionData any) *AddResourceDialogControl {
+func NewAddTemplateDialogControl(actionData any) *AddResourceDialogControl {
 
 	control := &AddResourceDialogControl{
 		action:     AddTemplate,
@@ -690,25 +690,25 @@ func NewAddTemplateDialogControl(th *material.Theme, actionData any) *AddResourc
 
 	inst := actionData.(*common.ResourceInstance)
 
-	control.tree = resourceCollections.CloneForInput(th)
+	control.tree = resourceCollections.CloneForInput()
 	control.tree.AddListener(control)
 	control.nameInput.SingleLine = true
 	control.typeInput.ReadOnly = true
 	control.typeInput.SetText(inst.GetSpecApiVer())
 
-	control.setupLocationLabel(th)
+	control.setupLocationLabel()
 
 	control.panel = func(gtx layout.Context) layout.Dimensions {
 
 		// name, type, and location(repo path)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				return control.nameInput.Layout(gtx, th, "Name of the resource")
+				return control.nameInput.Layout(gtx, common.GetTheme(), "Name of the resource")
 			}),
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 				return layout.Stack{}.Layout(gtx,
 					layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-						return control.typeInput.Layout(gtx, th, "")
+						return control.typeInput.Layout(gtx, common.GetTheme(), "")
 					}),
 				)
 			}),
@@ -720,7 +720,7 @@ func NewAddTemplateDialogControl(th *material.Theme, actionData any) *AddResourc
 					}),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						//tree
-						return control.tree.LayoutForInput(gtx, th)
+						return control.tree.LayoutForInput(gtx)
 					}),
 				)
 			}),
@@ -731,7 +731,7 @@ func NewAddTemplateDialogControl(th *material.Theme, actionData any) *AddResourc
 
 }
 
-func (adc *AddResourceDialogControl) loadMenus(th *material.Theme) {
+func (adc *AddResourceDialogControl) loadMenus() {
 	if adc.action == AddResource {
 
 		k8sService := k8sservice.GetK8sService()
@@ -775,7 +775,7 @@ func (adc *AddResourceDialogControl) loadMenus(th *material.Theme) {
 
 		for _, c := range adc.apiResourceClickControl {
 			apiResourceMenuItems = append(apiResourceMenuItems,
-				component.MenuItem(th, &c.clickable, c.apiName).Layout)
+				component.MenuItem(common.GetTheme(), &c.clickable, c.apiName).Layout)
 		}
 
 		adc.menuState = component.MenuState{
@@ -784,8 +784,8 @@ func (adc *AddResourceDialogControl) loadMenus(th *material.Theme) {
 	}
 }
 
-func (c *AddResourceDialogControl) setupLocationLabel(th *material.Theme) {
-	c.pathLabel = material.H6(th, c.path)
+func (c *AddResourceDialogControl) setupLocationLabel() {
+	c.pathLabel = material.H6(common.GetTheme(), c.path)
 	c.pathLabel.TextSize = unit.Sp(14)
 }
 
@@ -800,23 +800,23 @@ func (c *AddResourceDialogControl) getPathWidget() layout.Widget {
 	return pathWidget
 }
 
-func NewAddResourceDialogControl(th *material.Theme) *AddResourceDialogControl {
+func NewAddResourceDialogControl() *AddResourceDialogControl {
 	control := &AddResourceDialogControl{
 		action: AddResource,
 		path:   "",
 	}
 
-	control.tree = resourceCollections.CloneForInput(th)
+	control.tree = resourceCollections.CloneForInput()
 	control.tree.AddListener(control)
 
 	control.nameInput.SingleLine = true
 	control.typeInput.SingleLine = true
 
-	control.loadMenus(th)
+	control.loadMenus()
 
 	control.panel = func(gtx layout.Context) layout.Dimensions {
 
-		control.setupLocationLabel(th)
+		control.setupLocationLabel()
 
 		for _, apiControl := range control.apiResourceClickControl {
 			if apiControl.clickable.Clicked(gtx) {
@@ -826,6 +826,7 @@ func NewAddResourceDialogControl(th *material.Theme) *AddResourceDialogControl {
 
 		control.RequestFocusOnce(gtx)
 
+		th := common.GetTheme()
 		// name, type, and location(repo path)
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -852,7 +853,7 @@ func NewAddResourceDialogControl(th *material.Theme) *AddResourceDialogControl {
 					}),
 					layout.Flexed(1, func(gtx layout.Context) layout.Dimensions {
 						//tree
-						return control.tree.LayoutForInput(gtx, th)
+						return control.tree.LayoutForInput(gtx)
 					}),
 				)
 			}),
@@ -871,7 +872,7 @@ type CollectionActionHandler struct {
 
 // pos is the current selection: ResourceNode or Collection
 // if it's resourceNode get its parent collection.
-func (cah *CollectionActionHandler) handleAction(gtx layout.Context, th *material.Theme, pos common.INode, action Action, actionData any) {
+func (cah *CollectionActionHandler) handleAction(gtx layout.Context, pos common.INode, action Action, actionData any) {
 	// try do decide the target collection
 	var err error
 	if action == Reload {
@@ -888,7 +889,7 @@ func (cah *CollectionActionHandler) handleAction(gtx layout.Context, th *materia
 		return
 	}
 
-	activeControl := cah.GetControlForAction(th, action, actionData)
+	activeControl := cah.GetControlForAction(action, actionData)
 	if activeControl == nil {
 		return
 	}
@@ -899,16 +900,16 @@ func (cah *CollectionActionHandler) handleAction(gtx layout.Context, th *materia
 	cah.dialog.Show(gtx)
 }
 
-func (cah *CollectionActionHandler) GetControlForAction(th *material.Theme, action Action, actionData any) *AddResourceDialogControl {
+func (cah *CollectionActionHandler) GetControlForAction(action Action, actionData any) *AddResourceDialogControl {
 	switch action {
 	case AddCollection:
-		return NewAddCollectionDialogControl(th)
+		return NewAddCollectionDialogControl()
 	case AddResource:
-		return NewAddResourceDialogControl(th)
+		return NewAddResourceDialogControl()
 	case AddTemplate:
-		return NewAddTemplateDialogControl(th, actionData)
+		return NewAddTemplateDialogControl(actionData)
 	case Reorder:
-		return NewReorderDialogControl(th)
+		return NewReorderDialogControl()
 	}
 	return nil
 }
@@ -991,7 +992,7 @@ func (c *ResourceCollections) ResourceUpdated(pos common.INode) {
 	c.ResourcePage.UpdateActiveContents(pos.GetAllResources(), c.nodeMap)
 }
 
-func (c *ResourceCollections) handlContextActions(gtx layout.Context, th *material.Theme) {
+func (c *ResourceCollections) handlContextActions(gtx layout.Context) {
 	value, data, err := common.GetContextBool(common.CONTEXT_SAVE_TEMPLATE)
 	if err != nil {
 		logger.Warn("Error getting context", zap.Error(err))
@@ -1000,27 +1001,27 @@ func (c *ResourceCollections) handlContextActions(gtx layout.Context, th *materi
 		//think of an api to just set the value and leave the extra data unchanged.
 		common.SetContextBool(common.CONTEXT_SAVE_TEMPLATE, false, data)
 		if inst, ok := data.(*common.ResourceInstance); ok {
-			c.ActionHandler.handleAction(gtx, th, c.currentNode, AddTemplate, inst)
+			c.ActionHandler.handleAction(gtx, c.currentNode, AddTemplate, inst)
 		}
 	}
 }
 
-func (c *ResourceCollections) handleMenuActions(gtx layout.Context, th *material.Theme) {
+func (c *ResourceCollections) handleMenuActions(gtx layout.Context) {
 	if c.addCollectionBtn.Clicked(gtx) {
-		c.ActionHandler.handleAction(gtx, th, c.currentNode, AddCollection, nil)
+		c.ActionHandler.handleAction(gtx, c.currentNode, AddCollection, nil)
 	}
 	if c.addResourceBtn.Clicked(gtx) {
-		c.ActionHandler.handleAction(gtx, th, c.currentNode, AddResource, nil)
+		c.ActionHandler.handleAction(gtx, c.currentNode, AddResource, nil)
 	}
 	if c.removeBtn.Clicked(gtx) {
-		c.ActionHandler.handleAction(gtx, th, c.currentNode, Remove, nil)
+		c.ActionHandler.handleAction(gtx, c.currentNode, Remove, nil)
 	}
 	if c.reloadBtn.Clicked(gtx) {
-		c.ActionHandler.handleAction(gtx, th, c.currentNode, Reload, nil)
+		c.ActionHandler.handleAction(gtx, c.currentNode, Reload, nil)
 		c.ResourcePage.Activate(c.currentNode.GetId())
 	}
 	if c.reorderBtn.Clicked(gtx) {
-		c.ActionHandler.handleAction(gtx, th, c.currentNode, Reorder, nil)
+		c.ActionHandler.handleAction(gtx, c.currentNode, Reorder, nil)
 		c.ResourcePage.Activate(c.currentNode.GetId())
 	}
 }
@@ -1048,12 +1049,12 @@ func (c *ResourceCollections) Save() []error {
 	return errs
 }
 
-func (c *ResourceCollections) init(th *material.Theme, holder map[string]common.INode) []error {
+func (c *ResourceCollections) init(holder map[string]common.INode) []error {
 
 	c.noSelectMenuState = component.MenuState{
 		Options: []func(gtx component.C) component.D{
 			func(gtx component.C) component.D {
-				return common.ItemFunc(th, gtx, &c.noSelectBtn, "Please select an item", nil)
+				return common.ItemFunc(gtx, &c.noSelectBtn, "Please select an item", nil)
 			},
 		},
 	}
@@ -1061,24 +1062,24 @@ func (c *ResourceCollections) init(th *material.Theme, holder map[string]common.
 	c.menuState = component.MenuState{
 		Options: []func(gtx component.C) component.D{
 			func(gtx component.C) component.D {
-				return common.ItemFunc(th, gtx, &c.addResourceBtn, "Add Resource", graphics.AddToResourceIcon)
+				return common.ItemFunc(gtx, &c.addResourceBtn, "Add Resource", graphics.AddToResourceIcon)
 			},
 			func(gtx component.C) component.D {
-				return common.ItemFunc(th, gtx, &c.addCollectionBtn, "Add Collection", graphics.AddToCollectionIcon)
+				return common.ItemFunc(gtx, &c.addCollectionBtn, "Add Collection", graphics.AddToCollectionIcon)
 			},
 			func(gtx component.C) component.D {
-				return common.ItemFunc(th, gtx, &c.removeBtn, "Remove", graphics.DeleteIcon)
+				return common.ItemFunc(gtx, &c.removeBtn, "Remove", graphics.DeleteIcon)
 			},
 			func(gtx component.C) component.D {
-				return common.ItemFunc(th, gtx, &c.reloadBtn, "Reload", graphics.ReloadIcon)
+				return common.ItemFunc(gtx, &c.reloadBtn, "Reload", graphics.ReloadIcon)
 			},
 			func(gtx component.C) component.D {
-				return common.ItemFunc(th, gtx, &c.reorderBtn, "Reorder", graphics.ReorderIcon)
+				return common.ItemFunc(gtx, &c.reorderBtn, "Reorder", graphics.ReorderIcon)
 			},
 		},
 	}
 
-	c.ActionHandler = NewCollectionActionHandler(th, c)
+	c.ActionHandler = NewCollectionActionHandler(c)
 
 	repoPaths, err := config.GetCollectionRepos()
 
@@ -1102,14 +1103,14 @@ func (c *ResourceCollections) init(th *material.Theme, holder map[string]common.
 	return c.Load()
 }
 
-func NewCollectionActionHandler(th *material.Theme, owner *ResourceCollections) *CollectionActionHandler {
+func NewCollectionActionHandler(owner *ResourceCollections) *CollectionActionHandler {
 	handler := CollectionActionHandler{
 		Owner: owner,
 	}
 	return &handler
 }
 
-func (col *ResourceCollections) LayoutCollectionsForInput(gtx layout.Context, th *material.Theme, node *common.Collection) layout.Dimensions {
+func (col *ResourceCollections) LayoutCollectionsForInput(gtx layout.Context, node *common.Collection) layout.Dimensions {
 	if node.GetClickable().Clicked(gtx) {
 		col.currentNode = node
 		col.listener.PathSeleted(node.GetId(), node.GetPath())
@@ -1121,12 +1122,13 @@ func (col *ResourceCollections) LayoutCollectionsForInput(gtx layout.Context, th
 		for _, child := range chdrn {
 			children = append(children, layout.Rigid(
 				func(gtx layout.Context) layout.Dimensions {
-					return col.LayoutCollectionsForInput(gtx, th, child)
+					return col.LayoutCollectionsForInput(gtx, child)
 				}))
 		}
 	}
 
 	// dont list resources
+	th := common.GetTheme()
 	return component.SimpleDiscloser(th, node.GetDiscloserState()).Layout(gtx,
 		func(gtx layout.Context) layout.Dimensions {
 			return material.Clickable(gtx, node.GetClickable(), func(gtx layout.Context) layout.Dimensions {
@@ -1147,7 +1149,7 @@ func (col *ResourceCollections) LayoutCollectionsForInput(gtx layout.Context, th
 }
 
 // Layout a collection and its children.
-func (col *ResourceCollections) LayoutCollections(gtx layout.Context, th *material.Theme, node *common.Collection) layout.Dimensions {
+func (col *ResourceCollections) LayoutCollections(gtx layout.Context, node *common.Collection) layout.Dimensions {
 	// check if the current tab on resource page is different
 	if col.ResourcePage.current != nil {
 		node := col.FindNode(col.ResourcePage.current.GetId())
@@ -1166,12 +1168,13 @@ func (col *ResourceCollections) LayoutCollections(gtx layout.Context, th *materi
 		for _, child := range chdrn {
 			children = append(children, layout.Rigid(
 				func(gtx layout.Context) layout.Dimensions {
-					return col.LayoutCollections(gtx, th, child)
+					return col.LayoutCollections(gtx, child)
 				}))
 		}
 	}
 
 	// now list resources
+	th := common.GetTheme()
 	bag := node.GetResourceBag()
 	if len(bag.ResourceNodes) > 0 {
 		for _, res := range bag.ResourceNodes {
@@ -1247,25 +1250,26 @@ func (c *ResourceCollections) AddListener(listener common.RepoListener) {
 	c.listener = listener
 }
 
-func (col *ResourceCollections) LayoutForInput(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (col *ResourceCollections) LayoutForInput(gtx layout.Context) layout.Dimensions {
 	col.list.Axis = layout.Vertical
-	dim := material.List(th, &col.list).Layout(gtx, len(col.repos), func(gtx layout.Context, index int) layout.Dimensions {
+	dim := material.List(common.GetTheme(), &col.list).Layout(gtx, len(col.repos), func(gtx layout.Context, index int) layout.Dimensions {
 		return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return col.LayoutCollectionsForInput(gtx, th, col.repos[index].Collection)
+			return col.LayoutCollectionsForInput(gtx, col.repos[index].Collection)
 		})
 	})
 	return dim
 }
 
-func (col *ResourceCollections) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
-	col.handleMenuActions(gtx, th)
+func (col *ResourceCollections) Layout(gtx layout.Context) layout.Dimensions {
+	col.handleMenuActions(gtx)
 
-	col.handlContextActions(gtx, th)
+	col.handlContextActions(gtx)
 
+	th := common.GetTheme()
 	col.list.Axis = layout.Vertical
 	dim := material.List(th, &col.list).Layout(gtx, len(col.repos), func(gtx layout.Context, index int) layout.Dimensions {
 		return layout.UniformInset(unit.Dp(4)).Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return col.LayoutCollections(gtx, th, col.repos[index].Collection)
+			return col.LayoutCollections(gtx, col.repos[index].Collection)
 		})
 	})
 	dim2 := layout.Stack{}.Layout(gtx,
@@ -1363,7 +1367,7 @@ func (col *ResourceCollections) AddNewCollection(containerId string, containerPa
 	}
 }
 
-func (rc *ResourceCollections) CloneForInput(th *material.Theme) *ResourceCollections {
+func (rc *ResourceCollections) CloneForInput() *ResourceCollections {
 	newResCol := &ResourceCollections{
 		Name: "clone",
 		//no resource page
@@ -1379,7 +1383,7 @@ func (rc *ResourceCollections) CloneForInput(th *material.Theme) *ResourceCollec
 	return newResCol
 }
 
-func GetResourceCollections(page *ResourcePage, th *material.Theme) (*ResourceCollections, []error) {
+func GetResourceCollections(page *ResourcePage) (*ResourceCollections, []error) {
 	var err []error
 	if resourceCollections == nil {
 		holder := make(map[string]common.INode)
@@ -1387,7 +1391,7 @@ func GetResourceCollections(page *ResourcePage, th *material.Theme) (*ResourceCo
 			ResourcePage: page,
 		}
 		resourceCollections.ResourcePage.SetResourceManager(resourceCollections)
-		err = resourceCollections.init(th, holder)
+		err = resourceCollections.init(holder)
 	}
 	return resourceCollections, err
 }

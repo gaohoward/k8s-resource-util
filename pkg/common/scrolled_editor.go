@@ -87,7 +87,7 @@ func (f *Filter) filterContent() {
 	}
 }
 
-func (f *Filter) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (f *Filter) Layout(gtx layout.Context) layout.Dimensions {
 
 	changed := f.filterField.Changed(gtx)
 
@@ -95,7 +95,7 @@ func (f *Filter) Layout(gtx layout.Context, th *material.Theme) layout.Dimension
 		go f.filterContent()
 	}
 
-	return f.filterField.Layout(gtx, th)
+	return f.filterField.Layout(gtx)
 }
 
 type EditorEventListener interface {
@@ -106,7 +106,6 @@ type EditorEventListener interface {
 // we created this 'editor' using a list
 type ReadOnlyEditor struct {
 	id            string
-	th            *material.Theme
 	list          widget.List
 	originContent []*Liner
 	textSize      int
@@ -139,10 +138,6 @@ func (se *ReadOnlyEditor) ExtraLinkClicked(link *ExtraLink) {
 	if se.eventListener != nil {
 		se.eventListener.ExtraLinkClicked(link)
 	}
-}
-
-func (se *ReadOnlyEditor) Theme() *material.Theme {
-	return se.th
 }
 
 func (se *ReadOnlyEditor) Clear() {
@@ -178,7 +173,7 @@ func (se *ReadOnlyEditor) GetText() string {
 
 type MenuAction interface {
 	GetName() string
-	GetMenuOption(th *material.Theme) func(gtx layout.Context) layout.Dimensions
+	GetMenuOption() func(gtx layout.Context) layout.Dimensions
 	GetClickable() *widget.Clickable
 	Execute(gtx layout.Context, se *ReadOnlyEditor) error
 }
@@ -197,9 +192,9 @@ func (emb *EditorMenuBase) GetClickable() *widget.Clickable {
 	return &emb.btn
 }
 
-func (emb *EditorMenuBase) GetMenuOption(th *material.Theme) func(gtx layout.Context) layout.Dimensions {
+func (emb *EditorMenuBase) GetMenuOption() func(gtx layout.Context) layout.Dimensions {
 	return func(gtx layout.Context) layout.Dimensions {
-		return ItemFunc(th, gtx, &emb.btn, emb.Name, emb.icon)
+		return ItemFunc(gtx, &emb.btn, emb.Name, emb.icon)
 	}
 }
 
@@ -304,10 +299,9 @@ func NewSaveSelectionMenuAction() *SaveSelectionMenuAction {
 	return saveSelAct
 }
 
-func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []MenuAction, useFilter bool) *ReadOnlyEditor {
+func NewReadOnlyEditor(hint string, textSize int, actions []MenuAction, useFilter bool) *ReadOnlyEditor {
 	se := &ReadOnlyEditor{
 		id:              uuid.New().String(),
-		th:              th,
 		textSize:        textSize,
 		customActionMap: make(map[string]MenuAction),
 		selectedLines:   make([]*Liner, 0),
@@ -341,7 +335,7 @@ func NewReadOnlyEditor(th *material.Theme, hint string, textSize int, actions []
 
 	for _, action := range allActs {
 		se.customActionMap[action.GetName()] = action
-		menuOptions = append(menuOptions, action.GetMenuOption(th))
+		menuOptions = append(menuOptions, action.GetMenuOption())
 	}
 
 	se.menuState = component.MenuState{
@@ -361,7 +355,7 @@ func NewLineNote(note string, se *ReadOnlyEditor) *LineNote {
 		Note: note,
 	}
 
-	ln.noteLabel = material.Label(se.th, unit.Sp(se.textSize), "[note]")
+	ln.noteLabel = material.Label(GetTheme(), unit.Sp(se.textSize), "[note]")
 	ln.noteLabel.TextSize = unit.Sp(se.textSize)
 	ln.noteLabel.LineHeight = unit.Sp(se.textSize)
 	ln.noteLabel.MaxLines = 1
@@ -582,6 +576,7 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 
 func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *string, note *string, links []string) *Liner {
 
+	th := GetTheme()
 	// only show up to 1024 chars
 	var displayContent string
 	if len(*content) > 1024 {
@@ -590,26 +585,26 @@ func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *str
 		displayContent = *content
 	}
 
-	lineNumber := material.Label(se.th, unit.Sp(se.textSize), fmt.Sprintf("%d", 10))
+	lineNumber := material.Label(th, unit.Sp(se.textSize), fmt.Sprintf("%d", 10))
 	lineNumber.TextSize = unit.Sp(se.textSize - 3)
 	lineNumber.LineHeight = unit.Sp(se.textSize - 2)
 	lineNumber.Color = COLOR.LightGray
 	lineNumber.Font.Typeface = "monospace"
 
-	originalLineNumber := material.Label(se.th, unit.Sp(se.textSize), fmt.Sprintf("%d", 10))
+	originalLineNumber := material.Label(th, unit.Sp(se.textSize), fmt.Sprintf("%d", 10))
 	originalLineNumber.TextSize = unit.Sp(se.textSize - 3)
 	originalLineNumber.LineHeight = unit.Sp(se.textSize - 2)
 	originalLineNumber.Color = COLOR.Blue
 	originalLineNumber.Font.Typeface = "monospace"
 	originalLineNumber.Text = fmt.Sprintf("(%d)", index+1)
 
-	line := material.Label(se.th, unit.Sp(se.textSize), displayContent)
+	line := material.Label(th, unit.Sp(se.textSize), displayContent)
 	line.TextSize = unit.Sp(se.textSize)
 	line.LineHeight = unit.Sp(se.textSize)
 	line.MaxLines = 3
 	line.Font.Typeface = "monospace"
 
-	extraLabel := material.Label(se.th, unit.Sp(se.textSize), "...")
+	extraLabel := material.Label(th, unit.Sp(se.textSize), "...")
 	extraLabel.TextSize = unit.Sp(se.textSize)
 	extraLabel.LineHeight = unit.Sp(se.textSize)
 	extraLabel.MaxLines = 1
@@ -627,18 +622,18 @@ func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *str
 	}
 
 	if l.extraContent != nil {
-		l.extraDialog = NewTextDialog(se.th, "content", "", *l.extraContent, func() {
+		l.extraDialog = NewTextDialog("content", "", *l.extraContent, func() {
 			l.showExtra = false
 		})
 	}
 
 	if note != nil {
 		l.note = NewLineNote(*note, se)
-		l.noteDialog = NewTextDialog(se.th, "note", "", *note, func() {
+		l.noteDialog = NewTextDialog("note", "", *note, func() {
 			l.showNote = false
 		})
 	} else {
-		l.noteDialog = NewTextDialog(se.th, "note", "", "", func() {
+		l.noteDialog = NewTextDialog("note", "", "", func() {
 			l.showNote = false
 		})
 	}
@@ -659,7 +654,7 @@ func NewExtraLink(id int, editor *ReadOnlyEditor, link string, textSize unit.Sp)
 		Link:         link,
 	}
 
-	linkLabel := material.Label(editor.Theme(), unit.Sp(textSize), link)
+	linkLabel := material.Label(GetTheme(), unit.Sp(textSize), link)
 	linkLabel.LineHeight = unit.Sp(textSize)
 	linkLabel.MaxLines = 1
 	linkLabel.Color = COLOR.Red
@@ -680,7 +675,7 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 		}
 	}
 
-	listStyle := material.List(se.th, &se.list)
+	listStyle := material.List(GetTheme(), &se.list)
 	content := se.GetContent()
 	tot := len(content)
 
@@ -730,7 +725,7 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
 			return se.menuContextArea.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 				gtx.Constraints.Min = image.Point{}
-				return component.Menu(se.th, &se.menuState).Layout(gtx)
+				return component.Menu(GetTheme(), &se.menuState).Layout(gtx)
 			})
 		}),
 	)
@@ -738,7 +733,7 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 
 func (se *ReadOnlyEditor) LayoutFilter(gtx layout.Context) layout.Dimensions {
 	if se.filterOn {
-		return se.filter.Layout(gtx, se.th)
+		return se.filter.Layout(gtx)
 	}
 	return layout.Dimensions{}
 }

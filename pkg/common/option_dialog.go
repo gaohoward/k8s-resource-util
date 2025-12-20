@@ -31,16 +31,16 @@ type DialogBase struct {
 }
 
 type TargetPart interface {
-	Layout(gtx layout.Context, th *material.Theme, maxWidth int) layout.Dimensions
+	Layout(gtx layout.Context, maxWidth int) layout.Dimensions
 	Apply()
 	Cancel()
 }
 
 func (db *DialogBase) Layout(
 	gtx layout.Context,
-	th *material.Theme,
 	target TargetPart) layout.Dimensions {
 
+	th := GetTheme()
 	children := make([]layout.FlexChild, 5)
 
 	// 1 title
@@ -56,7 +56,7 @@ func (db *DialogBase) Layout(
 
 	biggerOne := max(db.title, db.subTitle)
 
-	size := GetAboutWidth(gtx, th, biggerOne)
+	size := GetAboutWidth(gtx, biggerOne)
 
 	// 2 horizontal divider
 	children[1] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
@@ -78,7 +78,7 @@ func (db *DialogBase) Layout(
 
 	// 4 options
 	children[3] = layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-		return target.Layout(gtx, th, size.Size.X)
+		return target.Layout(gtx, size.Size.X)
 	})
 
 	// 5 buttons
@@ -190,7 +190,7 @@ const (
 type OptionDialogCallback func(actionType ActionType, options map[string]string)
 type EditDialogCallback func(actionType ActionType, content string)
 
-func NewEditDialog(th *material.Theme, title string, subTitle string, initContent string, callback EditDialogCallback) *EditDialog {
+func NewEditDialog(title string, subTitle string, initContent string, callback EditDialogCallback) *EditDialog {
 	ed := &EditDialog{
 		dialogBase: &DialogBase{
 			title:    title,
@@ -202,7 +202,7 @@ func NewEditDialog(th *material.Theme, title string, subTitle string, initConten
 		callback: callback,
 	}
 
-	target.editorStyle = material.Editor(th, &target.editor, "")
+	target.editorStyle = material.Editor(GetTheme(), &target.editor, "")
 	target.editorStyle.Font.Typeface = "monospace"
 	target.editorStyle.Font.Weight = font.Bold
 	target.editorStyle.TextSize = unit.Sp(16)
@@ -229,7 +229,7 @@ func (e *EditorDialogTarget) Cancel() {
 }
 
 // Layout implements [TargetPart].
-func (e *EditorDialogTarget) Layout(gtx layout.Context, _ *material.Theme, width int) layout.Dimensions {
+func (e *EditorDialogTarget) Layout(gtx layout.Context, width int) layout.Dimensions {
 	border := widget.Border{
 		Color:        COLOR.Blue,
 		CornerRadius: unit.Dp(5),
@@ -251,9 +251,8 @@ func (e *EditorDialogTarget) Layout(gtx layout.Context, _ *material.Theme, width
 }
 
 func (od *EditDialog) Layout(
-	gtx layout.Context,
-	th *material.Theme) layout.Dimensions {
-	return od.dialogBase.Layout(gtx, th, od.editTarget)
+	gtx layout.Context) layout.Dimensions {
+	return od.dialogBase.Layout(gtx, od.editTarget)
 }
 
 func NewOptionDialog(title string, subTitle string, keys []string, defValues []string, callback OptionDialogCallback) *OptionDialog {
@@ -307,10 +306,11 @@ func (o *OptionDialogTarget) Cancel() {
 }
 
 // Layout implements [TargetPart].
-func (o *OptionDialogTarget) Layout(gtx layout.Context, th *material.Theme, _ int) layout.Dimensions {
+func (o *OptionDialogTarget) Layout(gtx layout.Context, _ int) layout.Dimensions {
+	th := GetTheme()
 	// measure the longest key label
 	longestKey := o.getLongestKey()
-	dims := MeasureLabelSize(gtx, th, longestKey)
+	dims := MeasureLabelSize(gtx, longestKey)
 
 	return material.List(th, &o.optionsList).Layout(gtx, len(o.optionWidgets), func(gtx layout.Context, index int) layout.Dimensions {
 		option := o.optionWidgets[index]
@@ -328,10 +328,9 @@ func (o *OptionDialogTarget) Layout(gtx layout.Context, th *material.Theme, _ in
 }
 
 func (od *OptionDialog) Layout(
-	gtx layout.Context,
-	th *material.Theme) layout.Dimensions {
+	gtx layout.Context) layout.Dimensions {
 
-	return od.dialogBase.Layout(gtx, th, od.optionTarget)
+	return od.dialogBase.Layout(gtx, od.optionTarget)
 }
 
 func (ot *OptionDialogTarget) getLongestKey() string {
@@ -344,7 +343,7 @@ func (ot *OptionDialogTarget) getLongestKey() string {
 	return longest
 }
 
-func MeasureWidgetSize(gtx layout.Context, th *material.Theme, widget layout.Widget) layout.Dimensions {
+func MeasureWidgetSize(gtx layout.Context, widget layout.Widget) layout.Dimensions {
 	newGtx := layout.Context{
 		Constraints: gtx.Constraints,
 		Metric:      gtx.Metric,
@@ -361,24 +360,25 @@ func MeasureWidgetSize(gtx layout.Context, th *material.Theme, widget layout.Wid
 	return dims
 }
 
-func MeasureTextFieldSize(gtx layout.Context, th *material.Theme, text string) layout.Dimensions {
+func MeasureTextFieldSize(gtx layout.Context, text string) layout.Dimensions {
 	tf := component.TextField{}
 	tf.Editor.SingleLine = true
 	tf.SetText(text)
-	return MeasureWidgetSize(gtx, th, func(gtx layout.Context) layout.Dimensions {
-		return tf.Layout(gtx, th, text)
+	return MeasureWidgetSize(gtx, func(gtx layout.Context) layout.Dimensions {
+		return tf.Layout(gtx, GetTheme(), text)
 	})
 }
 
-func MeasureLabelSize(gtx layout.Context, th *material.Theme, labelStr string) layout.Dimensions {
-	label := material.Label(th, unit.Sp(16), labelStr)
+func MeasureLabelSize(gtx layout.Context, labelStr string) layout.Dimensions {
+
+	label := material.Label(GetTheme(), unit.Sp(16), labelStr)
 	label.Font.Weight = font.Bold
 	label.TextSize = unit.Sp(16)
 	label.Alignment = text.Start
 	label.MaxLines = 1
 
 	inset := layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(2), Left: unit.Dp(2), Right: unit.Dp(4)}
-	return MeasureWidgetSize(gtx, th, func(gtx layout.Context) layout.Dimensions {
+	return MeasureWidgetSize(gtx, func(gtx layout.Context) layout.Dimensions {
 		return inset.Layout(gtx, label.Layout)
 	})
 }

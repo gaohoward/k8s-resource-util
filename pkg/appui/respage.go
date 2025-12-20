@@ -215,7 +215,7 @@ func (rp *ResourcePage) UpdateActiveContents(resIds []string, updateHolder map[s
 	}
 }
 
-func (rp *ResourcePage) Init(rtclient k8sservice.K8sService, refreshCh chan int, th *material.Theme) {
+func (rp *ResourcePage) Init(rtclient k8sservice.K8sService, refreshCh chan int) {
 	rp.current = nil
 	rp.activeResources = NewActiveResourceSet()
 
@@ -224,13 +224,15 @@ func (rp *ResourcePage) Init(rtclient k8sservice.K8sService, refreshCh chan int,
 	rp.ch = make(chan string, 1)
 	rp.refreshCh = refreshCh
 
+	th := common.GetTheme()
+
 	rp.crEditor = material.Editor(th, &rp.crPanel, "")
 	rp.crEditor.Font.Typeface = "monospace"
 	rp.crEditor.Font.Weight = font.Bold
 	rp.crEditor.TextSize = unit.Sp(16)
 	rp.crEditor.LineHeight = unit.Sp(16)
 
-	rp.crdEditor = common.NewReadOnlyEditor(th, "Schema", 16, nil, true)
+	rp.crdEditor = common.NewReadOnlyEditor("Schema", 16, nil, true)
 
 	rp.SaveBtnTooltip = component.DesktopTooltip(th, "Save")
 	rp.DeployBtnTooltip = component.DesktopTooltip(th, "Deploy")
@@ -239,7 +241,7 @@ func (rp *ResourcePage) Init(rtclient k8sservice.K8sService, refreshCh chan int,
 
 	rp.deployedResources = k8sservice.NewDeployedResources()
 
-	rp.appPanel = panels.GetAppPanel(th, rp.deployedResources, rtclient, rp.resourceManager)
+	rp.appPanel = panels.GetAppPanel(rp.deployedResources, rtclient, rp.resourceManager)
 }
 
 func (rp *ResourcePage) WaitForLoading(rc common.Resource) {
@@ -380,7 +382,9 @@ func (rp *ResourcePage) AddActiveResource(rc common.Resource, activate bool) *Ac
 	return ac
 }
 
-func (rp *ResourcePage) Layout(gtx layout.Context, th *material.Theme) layout.Dimensions {
+func (rp *ResourcePage) Layout(gtx layout.Context) layout.Dimensions {
+
+	th := common.GetTheme()
 
 	if rp.loadErr != nil {
 		err := rp.loadErr.Error()
@@ -601,7 +605,7 @@ func (rp *ResourcePage) Layout(gtx layout.Context, th *material.Theme) layout.Di
 							// the buttons on the bar
 							layout.Stacked(func(gtx layout.Context) layout.Dimensions {
 								return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-									rp.GetBarButtons(th)...,
+									rp.GetBarButtons()...,
 								)
 							}),
 						)
@@ -823,7 +827,8 @@ func (rp *ResourcePage) SaveCurrent(gtx layout.Context) {
 	}
 }
 
-func (rp *ResourcePage) GetBarButtons(th *material.Theme) []layout.FlexChild {
+func (rp *ResourcePage) GetBarButtons() []layout.FlexChild {
+	th := common.GetTheme()
 	children := make([]layout.FlexChild, 0)
 	//disable deploy on the whole repo
 	if rp.current != nil {

@@ -52,7 +52,7 @@ func (p *LogTab) GetClickable() *widget.Clickable {
 }
 
 // GetTabButtons implements PanelTab.
-func (p *LogTab) GetTabButtons(th *material.Theme) []layout.FlexChild {
+func (p *LogTab) GetTabButtons() []layout.FlexChild {
 	return p.rigidButtons
 }
 
@@ -98,9 +98,11 @@ func (p *LogTab) Write(data []byte) (n int, err error) {
 	return len(data), nil
 }
 
-func NewLogTab(th *material.Theme) *LogTab {
+func NewLogTab() *LogTab {
+	th := common.GetTheme()
+
 	tab := &LogTab{}
-	tab.logEditor = common.NewReadOnlyEditor(th, "log", 14, nil, true)
+	tab.logEditor = common.NewReadOnlyEditor("log", 14, nil, true)
 
 	tab.logBuffer = &LogBuffer{}
 

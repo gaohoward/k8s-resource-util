@@ -118,7 +118,7 @@ func (a *ApiResourcesTab) GetClickable() *widget.Clickable {
 }
 
 // GetTabButtons implements PanelTab.
-func (a *ApiResourcesTab) GetTabButtons(th *material.Theme) []layout.FlexChild {
+func (a *ApiResourcesTab) GetTabButtons() []layout.FlexChild {
 	return a.buttons
 }
 
@@ -144,7 +144,9 @@ func (a *ApiResourcesTab) processClick(item ApiResourceItem, gtx layout.Context)
 	}
 }
 
-func (a *ApiResourcesTab) LayoutApiResources(th *material.Theme, gtx layout.Context, agr *ApiResourceGroup) layout.Dimensions {
+func (a *ApiResourcesTab) LayoutApiResources(gtx layout.Context, agr *ApiResourceGroup) layout.Dimensions {
+
+	th := common.GetTheme()
 
 	children := make([]layout.FlexChild, 0)
 	for _, n := range agr.resources {
@@ -215,8 +217,9 @@ func (t *ApiResourcesTab) populateTableContents(resInfo *common.ApiResourceInfo,
 	}
 }
 
-func NewApiResourcesTab(th *material.Theme, client k8sservice.K8sService) *ApiResourcesTab {
+func NewApiResourcesTab(client k8sservice.K8sService) *ApiResourcesTab {
 
+	th := common.GetTheme()
 	tab := &ApiResourcesTab{
 		title:   "api-resources",
 		client:  client,
@@ -303,7 +306,7 @@ func NewApiResourcesTab(th *material.Theme, client k8sservice.K8sService) *ApiRe
 							agrp := tab.allApis[index]
 							return layout.UniformInset(unit.Dp(4)).Layout(gtx,
 								func(gtx layout.Context) layout.Dimensions {
-									return tab.LayoutApiResources(th, gtx, agrp)
+									return tab.LayoutApiResources(gtx, agrp)
 								})
 						})
 				},
@@ -338,7 +341,7 @@ func NewApiResourcesTab(th *material.Theme, client k8sservice.K8sService) *ApiRe
 							agrp := tab.allApis[index]
 							return layout.UniformInset(unit.Dp(4)).Layout(gtx,
 								func(gtx layout.Context) layout.Dimensions {
-									return tab.LayoutApiResources(th, gtx, agrp)
+									return tab.LayoutApiResources(gtx, agrp)
 								})
 						})
 				},

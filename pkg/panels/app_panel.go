@@ -15,7 +15,7 @@ import (
 type PanelTab interface {
 	GetClickable() *widget.Clickable
 	GetTitle() string
-	GetTabButtons(th *material.Theme) []layout.FlexChild
+	GetTabButtons() []layout.FlexChild
 	GetWidget() layout.Widget
 }
 
@@ -33,18 +33,18 @@ func (p *AppPanel) GetWidget() layout.Widget {
 
 // each time it is called a new panel is created
 // so far it should be only called once.
-func GetAppPanel(th *material.Theme, dr *k8sservice.DeployedResources, k8sClient k8sservice.K8sService, resMgr common.ResourceManager) *AppPanel {
+func GetAppPanel(dr *k8sservice.DeployedResources, k8sClient k8sservice.K8sService, resMgr common.ResourceManager) *AppPanel {
 	panel := AppPanel{}
 
-	depTab := NewDeploymentTab(th, dr, k8sClient, resMgr)
+	depTab := NewDeploymentTab(dr, k8sClient, resMgr)
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.65), nil)
-	logTab := NewLogTab(th)
+	logTab := NewLogTab()
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.7), nil)
-	apiTab := NewApiResourcesTab(th, k8sClient)
+	apiTab := NewApiResourcesTab(k8sClient)
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.75), nil)
-	inKTab := NewInKubeTab(th, k8sClient)
+	inKTab := NewInKubeTab(k8sClient)
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.8), nil)
-	utilTab := NewToolsTab(th, k8sClient)
+	utilTab := NewToolsTab(k8sClient)
 	common.SetContextData(common.CONTEXT_APP_INIT_STATE, float32(0.85), nil)
 
 	panel.allTabs = append(panel.allTabs,
@@ -59,6 +59,8 @@ func GetAppPanel(th *material.Theme, dr *k8sservice.DeployedResources, k8sClient
 		if panel.currentTab == nil {
 			panel.currentTab = panel.allTabs[0]
 		}
+
+		th := common.GetTheme()
 
 		panelTabs := func(gtx layout.Context) layout.Dimensions {
 			return panel.tabList.Layout(gtx, len(panel.allTabs), func(gtx layout.Context, index int) layout.Dimensions {
@@ -92,7 +94,7 @@ func GetAppPanel(th *material.Theme, dr *k8sservice.DeployedResources, k8sClient
 		tabBar = append(tabBar, child0)
 
 		//type should be layout.Rigid
-		rigidButtons := panel.currentTab.GetTabButtons(th)
+		rigidButtons := panel.currentTab.GetTabButtons()
 
 		tabBar = append(tabBar, rigidButtons...)
 

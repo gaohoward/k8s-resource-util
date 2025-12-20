@@ -50,7 +50,7 @@ func (d *DeploymentTab) GetClickable() *widget.Clickable {
 }
 
 // GetTabButtons implements PanelTab.
-func (d *DeploymentTab) GetTabButtons(th *material.Theme) []layout.FlexChild {
+func (d *DeploymentTab) GetTabButtons() []layout.FlexChild {
 	return d.buttons
 }
 
@@ -64,7 +64,9 @@ func (d *DeploymentTab) GetWidget() layout.Widget {
 	return d.widget
 }
 
-func NewDeploymentTab(th *material.Theme, dr *k8sservice.DeployedResources, k8sClient k8sservice.K8sService, resManager common.ResourceManager) *DeploymentTab {
+func NewDeploymentTab(dr *k8sservice.DeployedResources, k8sClient k8sservice.K8sService, resManager common.ResourceManager) *DeploymentTab {
+	th := common.GetTheme()
+
 	tab := &DeploymentTab{
 		buttons:            make([]layout.FlexChild, 0),
 		deployed:           dr,
