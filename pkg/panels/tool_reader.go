@@ -38,18 +38,17 @@ const (
 )
 
 type FileItem struct {
-	FileUrl   string                  `yaml:"file_url"`
-	RefInfos  map[int]*common.RefInfo `yaml:"ref_infos"`
-	ReaderDir string                  `yaml:"reader_dir"`
+	FileUrl  string                  `yaml:"file_url"`
+	RefInfos map[int]*common.RefInfo `yaml:"ref_infos"`
+	BookDir  string                  `yaml:"book_dir"`
 }
 
-func newFileItem(fileUrl string, readerDir string) *FileItem {
+func newFileItem(fileUrl string, bookDir string) *FileItem {
 	fileItem := &FileItem{
 		FileUrl:  fileUrl,
 		RefInfos: make(map[int]*common.RefInfo),
+		BookDir:  bookDir,
 	}
-	//get readerDir from fileUrl
-	fileItem.ReaderDir = readerDir
 	return fileItem
 }
 
@@ -60,7 +59,7 @@ func (f *FileItem) Save() error {
 		return err
 	}
 	fileHash := md5.Sum([]byte(f.FileUrl))
-	filePath := filepath.Join(f.ReaderDir, fmt.Sprintf("%x.yaml", fileHash))
+	filePath := filepath.Join(f.BookDir, fmt.Sprintf("%x.yaml", fileHash))
 	return os.WriteFile(filePath, data, 0644)
 }
 
@@ -390,7 +389,7 @@ func (fn *FileNavigator) Layout(gtx layout.Context) layout.Dimensions {
 		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			// top bar
 			if fn.tool.currentEntry != nil {
-				fn.topBar.Text = fmt.Sprintf("File: %s", fn.tool.currentEntry.FilePath)
+				fn.topBar.Text = fmt.Sprintf("%s :: %s", fn.tool.currentEntry.Book.Name, filepath.Base(fn.tool.currentEntry.FilePath))
 			} else {
 				fn.topBar.Text = "No file opened"
 			}
