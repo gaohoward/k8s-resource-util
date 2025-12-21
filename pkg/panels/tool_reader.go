@@ -296,8 +296,7 @@ func (a *AddNoteAction) FileChoosed(fileUrl string, attachment any) error {
 
 // GetFilter implements common.FileHandler.
 func (a *AddNoteAction) GetFilter() []string {
-	return []string{".sh", ".go", ".py", ".c", ".cpp", "java", ".pl", "Makefile"}
-
+	return []string{}
 }
 
 // Execute implements common.MenuAction.
@@ -840,7 +839,7 @@ func (b *Book) FileChoosed(fileUrl string, _ any) error {
 
 // GetFilter implements common.FileHandler.
 func (b *Book) GetFilter() []string {
-	return []string{".sh", ".go", ".py"}
+	return []string{}
 }
 
 func (b *Book) NewRootFile() {
