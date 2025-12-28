@@ -191,7 +191,8 @@ type ConvertTool struct {
 	convList       []*Conversion
 	convWidgetList widget.List
 
-	optDialog  *common.OptionDialog
+	optDialog  *common.EditDialog
+	optEdit    *common.OptionDialogTarget
 	showDialog bool
 }
 
@@ -821,7 +822,9 @@ func NewConvertTool() Tool {
 	c.newTargetBtnTooltip = component.DesktopTooltip(common.GetTheme(), "New")
 	c.convWidgetList.Axis = layout.Vertical
 	c.targetEditor = common.NewReadOnlyEditor("", 16, nil, true)
-	c.optDialog = common.NewOptionDialog("", "", nil, nil, nil)
+
+	c.optEdit = common.NewOptionDialogTarget(nil, nil, nil)
+	c.optDialog = common.NewEditDialog("", "", "", nil)
 
 	c.initMenu()
 
@@ -833,9 +836,11 @@ func NewConvertTool() Tool {
 			if a.clickable.Clicked(gtx) {
 				if title, subTitle, keys, defValues, desc := a.kind.GetOptionKeysAndValues(); len(keys) > 0 {
 
-					c.optDialog.SetOptions(title, subTitle, keys, defValues, desc)
+					c.optDialog.SetTitle(title)
+					c.optDialog.SetSubtitle(subTitle)
+					c.optEdit.SetOptions(keys, defValues, desc)
 
-					c.optDialog.SetCallback(func(actionType common.ActionType, options map[string]string) {
+					c.optEdit.SetCallback(func(actionType common.ActionType, options map[string]string) {
 						c.showDialog = false
 						if actionType == common.OK {
 							a.DoFor(gtx, c, options)

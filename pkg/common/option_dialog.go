@@ -120,64 +120,16 @@ func (db *DialogBase) Layout(
 
 type EditDialog struct {
 	dialogBase *DialogBase
-	editTarget *EditorDialogTarget
+	editTarget TargetPart
+	// editTarget *EditorDialogTarget
 }
 
-func (od *EditDialog) SetContent(content string) {
-	od.editTarget.editor.SetText(content)
-}
-
-func (od *EditDialog) SetCallback(f func(actionType ActionType, content string)) {
-	od.editTarget.callback = f
+func (od *EditDialog) SetSubtitle(s string) {
+	od.dialogBase.subTitle = s
 }
 
 func (od *EditDialog) SetTitle(title string) {
 	od.dialogBase.title = title
-}
-
-type OptionDialog struct {
-	dialogBase   *DialogBase
-	optionTarget *OptionDialogTarget
-}
-
-func (ot *OptionDialogTarget) SetOptions(keys []string, defValues []string, desc []string) {
-
-	diff := len(keys) - len(defValues)
-	if diff > 0 {
-		for range diff {
-			defValues = append(defValues, "")
-		}
-	}
-
-	ot.optionWidgets = make([]*OptionWidget, len(keys))
-	for i := range keys {
-		ot.keyValues.Set(keys[i], defValues[i])
-		ot.optionWidgets[i] = &OptionWidget{
-			key:   keys[i],
-			value: defValues[i],
-		}
-		if desc != nil {
-			ot.optionWidgets[i].desc = desc[i]
-		} else {
-			ot.optionWidgets[i].desc = keys[i]
-		}
-		ot.optionWidgets[i].valueField.Editor.SingleLine = true
-		ot.optionWidgets[i].valueField.Editor.SetText(defValues[i])
-	}
-}
-
-func (od *OptionDialog) SetOptions(title string, subTitle string, keys []string, defValues []string, desc []string) {
-	od.dialogBase.title = title
-	od.dialogBase.subTitle = subTitle
-
-	diff := len(keys) - len(defValues)
-	if diff > 0 {
-		for range diff {
-			defValues = append(defValues, "")
-		}
-	}
-
-	od.optionTarget.SetOptions(keys, defValues, desc)
 }
 
 type ActionType int
@@ -187,160 +139,30 @@ const (
 	CANCEL ActionType = 1
 )
 
+type Choice struct {
+	Name  string
+	Value any
+}
+
 type OptionDialogCallback func(actionType ActionType, options map[string]string)
 type EditDialogCallback func(actionType ActionType, content string)
+type ChoiceDialogCallback func(actionType ActionType, choices []*Choice)
 
-func NewEditDialog(title string, subTitle string, initContent string, callback EditDialogCallback) *EditDialog {
+func NewEditDialog(title string, subTitle string, initContent string, target TargetPart) *EditDialog {
 	ed := &EditDialog{
 		dialogBase: &DialogBase{
 			title:    title,
 			subTitle: subTitle,
 		},
+		editTarget: target,
 	}
 
-	target := &EditorDialogTarget{
-		callback: callback,
-	}
-
-	target.editorStyle = material.Editor(GetTheme(), &target.editor, "")
-	target.editorStyle.Font.Typeface = "monospace"
-	target.editorStyle.Font.Weight = font.Bold
-	target.editorStyle.TextSize = unit.Sp(16)
-	target.editorStyle.LineHeight = unit.Sp(16)
-
-	ed.editTarget = target
 	return ed
-}
-
-type EditorDialogTarget struct {
-	callback    EditDialogCallback
-	editorStyle material.EditorStyle
-	editor      widget.Editor
-}
-
-// Apply implements [TargetPart].
-func (e *EditorDialogTarget) Apply() {
-	e.callback(OK, e.editor.Text())
-}
-
-// Cancel implements [TargetPart].
-func (e *EditorDialogTarget) Cancel() {
-	e.callback(CANCEL, e.editor.Text())
-}
-
-// Layout implements [TargetPart].
-func (e *EditorDialogTarget) Layout(gtx layout.Context, width int) layout.Dimensions {
-	border := widget.Border{
-		Color:        COLOR.Blue,
-		CornerRadius: unit.Dp(5),
-		Width:        unit.Dp(2),
-	}
-	return border.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-		if gtx.Constraints.Min.X < width {
-			gtx.Constraints.Min.X = width
-		}
-		if e.editor.LineHeight > 0 {
-			gtx.Constraints.Min.Y = int(3 * e.editor.LineHeight)
-		} else {
-			gtx.Constraints.Min.Y = 48
-		}
-		return layout.Inset{Top: 2, Bottom: 2, Left: 2, Right: 2}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-			return e.editorStyle.Layout(gtx)
-		})
-	})
 }
 
 func (od *EditDialog) Layout(
 	gtx layout.Context) layout.Dimensions {
 	return od.dialogBase.Layout(gtx, od.editTarget)
-}
-
-func NewOptionDialog(title string, subTitle string, keys []string, defValues []string, callback OptionDialogCallback) *OptionDialog {
-	od := &OptionDialog{
-		dialogBase: &DialogBase{
-			title:    title,
-			subTitle: subTitle,
-		},
-	}
-
-	target := &OptionDialogTarget{
-		keyValues: om.New[string, string](),
-		callback:  callback,
-	}
-
-	target.optionsList.Axis = layout.Vertical
-
-	target.SetOptions(keys, defValues, nil)
-
-	od.optionTarget = target
-	return od
-}
-
-func (od *OptionDialogTarget) CollectCurrentOptions() map[string]string {
-	options := make(map[string]string, len(od.optionWidgets))
-	for _, w := range od.optionWidgets {
-		options[w.key] = w.valueField.Editor.Text()
-	}
-	return options
-}
-
-func (od *OptionDialog) SetCallback(cb OptionDialogCallback) {
-	od.optionTarget.callback = cb
-}
-
-type OptionDialogTarget struct {
-	keyValues     *om.OrderedMap[string, string]
-	optionWidgets []*OptionWidget
-	optionsList   widget.List
-	callback      OptionDialogCallback
-}
-
-// Apply implements [TargetPart].
-func (o *OptionDialogTarget) Apply() {
-	o.callback(OK, o.CollectCurrentOptions())
-}
-
-// Cancel implements [TargetPart].
-func (o *OptionDialogTarget) Cancel() {
-	o.callback(CANCEL, o.CollectCurrentOptions())
-}
-
-// Layout implements [TargetPart].
-func (o *OptionDialogTarget) Layout(gtx layout.Context, _ int) layout.Dimensions {
-	th := GetTheme()
-	// measure the longest key label
-	longestKey := o.getLongestKey()
-	dims := MeasureLabelSize(gtx, longestKey)
-
-	return material.List(th, &o.optionsList).Layout(gtx, len(o.optionWidgets), func(gtx layout.Context, index int) layout.Dimensions {
-		option := o.optionWidgets[index]
-		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-				d := material.Label(th, unit.Sp(16), option.key).Layout(gtx)
-				d.Size.X = dims.Size.X + gtx.Dp(unit.Dp(10))
-				return d
-			}),
-			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
-				return option.valueField.Layout(gtx, th, option.GetDescription())
-			}),
-		)
-	})
-}
-
-func (od *OptionDialog) Layout(
-	gtx layout.Context) layout.Dimensions {
-
-	return od.dialogBase.Layout(gtx, od.optionTarget)
-}
-
-func (ot *OptionDialogTarget) getLongestKey() string {
-	longest := ""
-	for _, o := range ot.optionWidgets {
-		if len(o.key) > len(longest) {
-			longest = o.key
-		}
-	}
-	return longest
 }
 
 func MeasureWidgetSize(gtx layout.Context, widget layout.Widget) layout.Dimensions {
@@ -380,5 +202,235 @@ func MeasureLabelSize(gtx layout.Context, labelStr string) layout.Dimensions {
 	inset := layout.Inset{Top: unit.Dp(2), Bottom: unit.Dp(2), Left: unit.Dp(2), Right: unit.Dp(4)}
 	return MeasureWidgetSize(gtx, func(gtx layout.Context) layout.Dimensions {
 		return inset.Layout(gtx, label.Layout)
+	})
+}
+
+type EditorDialogTarget struct {
+	callback    EditDialogCallback
+	editorStyle material.EditorStyle
+	editor      widget.Editor
+}
+
+func (e *EditorDialogTarget) SetCallback(f func(actionType ActionType, content string)) {
+	e.callback = f
+}
+
+func (e *EditorDialogTarget) SetContent(s string) {
+	e.editor.SetText(s)
+}
+
+func NewEditorDialogTarget(callback EditDialogCallback, initContent string) *EditorDialogTarget {
+	target := &EditorDialogTarget{
+		callback: callback,
+	}
+	target.editorStyle = material.Editor(GetTheme(), &target.editor, "")
+	target.editorStyle.Font.Typeface = "monospace"
+	target.editorStyle.Font.Weight = font.Bold
+	target.editorStyle.TextSize = unit.Sp(16)
+	target.editorStyle.LineHeight = unit.Sp(16)
+	target.editor.SetText(initContent)
+	return target
+}
+
+// Apply implements [TargetPart].
+func (e *EditorDialogTarget) Apply() {
+	e.callback(OK, e.editor.Text())
+}
+
+// Cancel implements [TargetPart].
+func (e *EditorDialogTarget) Cancel() {
+	e.callback(CANCEL, e.editor.Text())
+}
+
+// Layout implements [TargetPart].
+func (e *EditorDialogTarget) Layout(gtx layout.Context, width int) layout.Dimensions {
+	border := widget.Border{
+		Color:        COLOR.Blue,
+		CornerRadius: unit.Dp(5),
+		Width:        unit.Dp(2),
+	}
+	return border.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+		if gtx.Constraints.Min.X < width {
+			gtx.Constraints.Min.X = width
+		}
+		if e.editor.LineHeight > 0 {
+			gtx.Constraints.Min.Y = int(3 * e.editor.LineHeight)
+		} else {
+			gtx.Constraints.Min.Y = 48
+		}
+		return layout.Inset{Top: 2, Bottom: 2, Left: 2, Right: 2}.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+			return e.editorStyle.Layout(gtx)
+		})
+	})
+}
+
+type OptionDialogTarget struct {
+	keyValues     *om.OrderedMap[string, string]
+	optionWidgets []*OptionWidget
+	optionsList   widget.List
+	callback      OptionDialogCallback
+}
+
+func (ot *OptionDialogTarget) SetCallback(f func(actionType ActionType, options map[string]string)) {
+	ot.callback = f
+}
+
+func NewOptionDialogTarget(keys []string, defValues []string, callback OptionDialogCallback) *OptionDialogTarget {
+
+	target := &OptionDialogTarget{
+		keyValues: om.New[string, string](),
+		callback:  callback,
+	}
+
+	target.optionsList.Axis = layout.Vertical
+
+	target.SetOptions(keys, defValues, nil)
+
+	return target
+}
+
+func (ot *OptionDialogTarget) SetOptions(keys []string, defValues []string, desc []string) {
+
+	diff := len(keys) - len(defValues)
+	if diff > 0 {
+		for range diff {
+			defValues = append(defValues, "")
+		}
+	}
+
+	ot.optionWidgets = make([]*OptionWidget, len(keys))
+	for i := range keys {
+		ot.keyValues.Set(keys[i], defValues[i])
+		ot.optionWidgets[i] = &OptionWidget{
+			key:   keys[i],
+			value: defValues[i],
+		}
+		if desc != nil {
+			ot.optionWidgets[i].desc = desc[i]
+		} else {
+			ot.optionWidgets[i].desc = keys[i]
+		}
+		ot.optionWidgets[i].valueField.Editor.SingleLine = true
+		ot.optionWidgets[i].valueField.Editor.SetText(defValues[i])
+	}
+}
+
+func (od *OptionDialogTarget) CollectCurrentOptions() map[string]string {
+	options := make(map[string]string, len(od.optionWidgets))
+	for _, w := range od.optionWidgets {
+		options[w.key] = w.valueField.Editor.Text()
+	}
+	return options
+}
+
+// Apply implements [TargetPart].
+func (o *OptionDialogTarget) Apply() {
+	o.callback(OK, o.CollectCurrentOptions())
+}
+
+// Cancel implements [TargetPart].
+func (o *OptionDialogTarget) Cancel() {
+	o.callback(CANCEL, o.CollectCurrentOptions())
+}
+
+// Layout implements [TargetPart].
+func (o *OptionDialogTarget) Layout(gtx layout.Context, _ int) layout.Dimensions {
+	th := GetTheme()
+	// measure the longest key label
+	longestKey := o.getLongestKey()
+	dims := MeasureLabelSize(gtx, longestKey)
+
+	return material.List(th, &o.optionsList).Layout(gtx, len(o.optionWidgets), func(gtx layout.Context, index int) layout.Dimensions {
+		option := o.optionWidgets[index]
+		return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+				d := material.Label(th, unit.Sp(16), option.key).Layout(gtx)
+				d.Size.X = dims.Size.X + gtx.Dp(unit.Dp(10))
+				return d
+			}),
+			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+				return option.valueField.Layout(gtx, th, option.GetDescription())
+			}),
+		)
+	})
+}
+
+func (ot *OptionDialogTarget) getLongestKey() string {
+	longest := ""
+	for _, o := range ot.optionWidgets {
+		if len(o.key) > len(longest) {
+			longest = o.key
+		}
+	}
+	return longest
+}
+
+type ChoiceWidget struct {
+	choice    *Choice
+	selected  widget.Bool
+	nameField material.LabelStyle
+}
+
+type ChoiceDialogTarget struct {
+	choices       []*Choice
+	choiceWidgets []*ChoiceWidget
+	choicesList   widget.List
+	callback      ChoiceDialogCallback
+}
+
+func (ot *ChoiceDialogTarget) SetCallback(f ChoiceDialogCallback) {
+	ot.callback = f
+}
+
+func NewChoiceDialogTarget(choices []*Choice, callback ChoiceDialogCallback) *ChoiceDialogTarget {
+	target := &ChoiceDialogTarget{
+		choices:  choices,
+		callback: callback,
+	}
+
+	target.choicesList.Axis = layout.Vertical
+
+	target.SetChoices(choices)
+
+	return target
+}
+
+func (ot *ChoiceDialogTarget) SetChoices(choices []*Choice) {
+	ot.choiceWidgets = make([]*ChoiceWidget, len(choices))
+	for i := range choices {
+		ot.choiceWidgets[i] = &ChoiceWidget{
+			choice: choices[i],
+		}
+	}
+}
+
+// Apply implements [TargetPart].
+func (ot *ChoiceDialogTarget) Apply() {
+	ot.callback(OK, ot.GetSelection())
+}
+
+func (ot *ChoiceDialogTarget) GetSelection() []*Choice {
+	selected := make([]*Choice, 0)
+	for _, w := range ot.choiceWidgets {
+		if w.selected.Value {
+			selected = append(selected, w.choice)
+		}
+	}
+	return selected
+}
+
+// Cancel implements [TargetPart].
+func (o *ChoiceDialogTarget) Cancel() {
+	o.callback(CANCEL, o.GetSelection())
+}
+
+// Layout implements [TargetPart].
+func (o *ChoiceDialogTarget) Layout(gtx layout.Context, _ int) layout.Dimensions {
+	th := GetTheme()
+
+	return material.List(th, &o.choicesList).Layout(gtx, len(o.choiceWidgets), func(gtx layout.Context, index int) layout.Dimensions {
+		choice := o.choiceWidgets[index]
+		checkBox := material.CheckBox(th, &choice.selected, choice.choice.Name)
+		return checkBox.Layout(gtx)
 	})
 }

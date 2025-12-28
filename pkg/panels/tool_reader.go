@@ -24,11 +24,14 @@ import (
 	"gioui.org/x/component"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	"k8s.io/utils/ptr"
 )
 
 const (
-	MENU_ADD_NOTE = "Add Note"
-	MENU_ADD_LINK = "Add Link"
+	MENU_ADD_NOTE    = "Add Note"
+	MENU_REMOVE_NOTE = "Remove Note"
+	MENU_ADD_LINK    = "Add Link"
+	MENU_REMOVE_LINK = "Remove Link"
 
 	NEW_FILE_CHOSEN        = "k8sutil.tool.reader.new-file"
 	NEW_LINK_CHOSEN_BASE   = "k8sutil.tool.reader.new-link"
@@ -63,6 +66,24 @@ func (f *FileItem) Save() error {
 	return os.WriteFile(filePath, data, 0644)
 }
 
+func (f *FileItem) UpdateLinks(liner *common.Liner, links []*common.ExtraLink) {
+	ln := liner.GetLineNumber()
+	ref, ok := f.RefInfos[ln]
+	if !ok {
+		ref = &common.RefInfo{
+			LineNumber:  ln,
+			InlineNote:  "",
+			RefFileUrls: []string{},
+		}
+		f.RefInfos[ln] = ref
+	}
+	ref.RefFileUrls = []string{}
+	for _, link := range links {
+		ref.RefFileUrls = append(ref.RefFileUrls, link.Link)
+	}
+	f.Save()
+}
+
 func (f *FileItem) UpdateNote(liner *common.Liner, content string) {
 	ln := liner.GetLineNumber()
 	ref, ok := f.RefInfos[ln]
@@ -95,17 +116,21 @@ func (f *FileItem) AddLinkRef(liner *common.Liner, link string) {
 }
 
 type FilePane struct {
-	item           *FileItem
-	linkContextKey string
-	noteContextKey string
-	editor         *common.ReadOnlyEditor
-	resize         component.Resize
-	actions        []common.MenuAction
-	controlBar     layout.Widget
-	titleLabel     material.LabelStyle
-	closeBtn       widget.Clickable
-	editPanel      *common.EditDialog
-	showAddNote    bool
+	item              *FileItem
+	linkContextKey    string
+	noteContextKey    string
+	editor            *common.ReadOnlyEditor
+	resize            component.Resize
+	actions           []common.MenuAction
+	controlBar        layout.Widget
+	titleLabel        material.LabelStyle
+	closeBtn          widget.Clickable
+	editPanel         *common.EditDialog
+	noteEdit          *common.EditorDialogTarget
+	linkChooserDialog *common.EditDialog
+	linkChooserEdit   *common.ChoiceDialogTarget
+	showAddNote       bool
+	showRemoveLinks   bool
 }
 
 func (fp *FilePane) RegisterEditorListener(fn *FileNavigator) error {
@@ -134,7 +159,11 @@ func (fn *FileNavigator) NewFilePane(item *FileItem) *FilePane {
 	common.RegisterContext(fp.linkContextKey, nil, true)
 	common.RegisterContext(fp.noteContextKey, nil, true)
 
-	fp.editPanel = common.NewEditDialog("note", "", "", nil)
+	fp.noteEdit = common.NewEditorDialogTarget(nil, "")
+	fp.editPanel = common.NewEditDialog("note", "", "", fp.noteEdit)
+
+	fp.linkChooserEdit = common.NewChoiceDialogTarget(nil, nil)
+	fp.linkChooserDialog = common.NewEditDialog("links", "select the link", "", fp.linkChooserEdit)
 
 	fp.titleLabel = material.Label(th, unit.Sp(14), item.FileUrl)
 	fp.titleLabel.Color = common.COLOR.Blue
@@ -160,7 +189,9 @@ func (fn *FileNavigator) NewFilePane(item *FileItem) *FilePane {
 
 	fp.actions = []common.MenuAction{
 		NewAddNoteAction(MENU_ADD_LINK, graphics.ResIcon, fp),
+		NewAddNoteAction(MENU_REMOVE_LINK, graphics.DeleteIcon, fp),
 		NewAddNoteAction(MENU_ADD_NOTE, graphics.AddIcon, fp),
+		NewAddNoteAction(MENU_REMOVE_NOTE, graphics.DeleteIcon, fp),
 	}
 
 	fp.editor = common.NewReadOnlyEditor("", 16, fp.actions, true)
@@ -183,21 +214,34 @@ func (fp *FilePane) Layout(gtx layout.Context) layout.Dimensions {
 
 	reqData, extra := common.PollContextData(fp.noteContextKey)
 	if reqData != nil {
+		logger.Info("we have got something")
+		isDelete := ptr.To(false)
+		okBool := false
 		if liner, ok := reqData.(*common.Liner); ok {
-			targetLine := liner.GetLineNumber() + 1
-			title := fmt.Sprintf("Note at line %d", targetLine)
-			existing := liner.GetNote()
-			if existing != nil {
-				fp.editPanel.SetContent(*existing)
-			}
-			fp.editPanel.SetTitle(title)
-			fp.editPanel.SetCallback(func(actionType common.ActionType, content string) {
-				fp.showAddNote = false
-				if actionType == common.OK {
-					fp.UpdateNote(liner, content)
+			if extra != nil {
+				if isDelete, okBool = extra.(*bool); okBool && *isDelete {
+					//delete the note
+					liner.RemoveNote()
+					fp.item.UpdateNote(liner, "")
 				}
-			})
-			fp.showAddNote = true
+			}
+			if !*isDelete {
+				// add the note
+				targetLine := liner.GetLineNumber() + 1
+				title := fmt.Sprintf("Note at line %d", targetLine)
+				existing := liner.GetNote()
+				fp.editPanel.SetTitle(title)
+				if existing != nil {
+					fp.noteEdit.SetContent(*existing)
+				}
+				fp.noteEdit.SetCallback(func(actionType common.ActionType, content string) {
+					fp.showAddNote = false
+					if actionType == common.OK {
+						fp.UpdateNote(liner, content)
+					}
+				})
+				fp.showAddNote = true
+			}
 		}
 	}
 
@@ -208,12 +252,38 @@ func (fp *FilePane) Layout(gtx layout.Context) layout.Dimensions {
 	data, extra := common.PollContextData(fp.linkContextKey)
 	if data != nil && extra != nil {
 		if fileUrl, ok := data.(*string); ok {
-			if *fileUrl != "" {
-				if liner, ok := extra.(*common.Liner); ok {
+			if liner, ok1 := extra.(*common.Liner); ok1 {
+				if *fileUrl != "" {
 					fp.AddLink(liner, *fileUrl)
+				} else {
+					if links := liner.GetLinks(); len(links) > 0 {
+						fp.linkChooserDialog.SetTitle("Remove Links")
+						fp.linkChooserDialog.SetSubtitle("select links to remove")
+						choices := make([]*common.Choice, 0)
+						for _, link := range links {
+							choices = append(choices, &common.Choice{
+								Name:  link.Link,
+								Value: link,
+							})
+						}
+						fp.linkChooserEdit.SetChoices(choices)
+						fp.linkChooserEdit.SetCallback(func(actionType common.ActionType, selected []*common.Choice) {
+							fp.showRemoveLinks = false
+							if actionType == common.OK {
+								liner.RemoveRefLinks(selected)
+								fp.item.UpdateLinks(liner, liner.GetLinks())
+							}
+						})
+						fp.showRemoveLinks = true
+					}
 				}
 			}
+
 		}
+	}
+
+	if fp.showRemoveLinks {
+		return fp.linkChooserDialog.Layout(gtx)
 	}
 
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
@@ -304,12 +374,24 @@ func (a *AddNoteAction) Execute(gtx layout.Context, se *common.ReadOnlyEditor) e
 	switch a.name {
 	case MENU_ADD_NOTE:
 		a.DoAddNote(gtx, se)
+	case MENU_REMOVE_NOTE:
+		a.DoRemoveNote(gtx, se)
 	case MENU_ADD_LINK:
 		a.DoAddLink(gtx, se)
+	case MENU_REMOVE_LINK:
+		a.DoRemoveLink(gtx, se)
 	default:
 		logger.Warn("Unknown action executed", zap.String("action", a.name))
 	}
 	return nil
+}
+
+func (a AddNoteAction) DoRemoveLink(gtx layout.Context, se *common.ReadOnlyEditor) {
+	lines := se.GetSelectedLines()
+	if len(lines) == 0 {
+		return
+	}
+	common.SetContextData(a.Pane.linkContextKey, ptr.To(""), lines[0])
 }
 
 func (a *AddNoteAction) DoAddLink(gtx layout.Context, se *common.ReadOnlyEditor) {
@@ -328,6 +410,14 @@ func (a *AddNoteAction) DoAddNote(gtx layout.Context, se *common.ReadOnlyEditor)
 		return
 	}
 	common.SetContextData(a.Pane.noteContextKey, lines[0], nil)
+}
+
+func (a *AddNoteAction) DoRemoveNote(gtx layout.Context, se *common.ReadOnlyEditor) {
+	lines := se.GetSelectedLines()
+	if len(lines) == 0 {
+		return
+	}
+	common.SetContextData(a.Pane.noteContextKey, lines[0], ptr.To(true))
 }
 
 // GetClickable implements common.MenuAction.
@@ -668,7 +758,8 @@ type BookRepo struct {
 	currentBook    *Book
 	bookWidgetList widget.List
 
-	nameChooser *common.OptionDialog
+	nameChooser *common.EditDialog
+	nameEdit    *common.OptionDialogTarget
 	showNewBook bool
 }
 
@@ -708,8 +799,10 @@ func (b *BookRepo) CreateNewBook() {
 	keys := []string{"Name"}
 	defValues := []string{b.GenerateNewBookName()}
 	desc := []string{"name of the book"}
-	b.nameChooser.SetOptions("New Book", "book name must be unique", keys, defValues, desc)
-	b.nameChooser.SetCallback(func(actionType common.ActionType, options map[string]string) {
+	b.nameChooser.SetTitle("New Book")
+	b.nameChooser.SetSubtitle("book name must be unique")
+	b.nameEdit.SetOptions(keys, defValues, desc)
+	b.nameEdit.SetCallback(func(actionType common.ActionType, options map[string]string) {
 		b.showNewBook = false
 		if actionType == common.OK {
 			name := options["Name"]
@@ -769,7 +862,8 @@ func NewBookRepo(baseDir string, tool *ReaderTool) *BookRepo {
 	}
 	r.bookWidgetList.Axis = layout.Vertical
 
-	r.nameChooser = common.NewOptionDialog("", "", nil, nil, nil)
+	r.nameEdit = common.NewOptionDialogTarget(nil, nil, nil)
+	r.nameChooser = common.NewEditDialog("", "", "", r.nameEdit)
 
 	common.RegisterContext(DELETE_BOOK, nil, true)
 

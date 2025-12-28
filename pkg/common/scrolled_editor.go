@@ -400,6 +400,18 @@ type Liner struct {
 	originalLineIndex       int
 }
 
+func (l *Liner) GetLinks() []*ExtraLink {
+	return l.extraLinks
+}
+
+func (l *Liner) RemoveNote() *string {
+	oldNote := l.GetNote()
+	if l.note != nil {
+		l.note = nil
+	}
+	return oldNote
+}
+
 func (l *Liner) AddNote(content string, se *ReadOnlyEditor) {
 	if strings.TrimSpace(content) == "" {
 		return
@@ -417,6 +429,25 @@ func (l *Liner) AddRefLink(link string, editor *ReadOnlyEditor) {
 	id := len(l.extraLinks)
 	exLink := NewExtraLink(id, editor, link, l.lineLabel.TextSize)
 	l.extraLinks = append(l.extraLinks, exLink)
+}
+
+func (l *Liner) RemoveRefLinks(links []*Choice) {
+	newLinks := make([]*ExtraLink, 0)
+	for _, el := range l.extraLinks {
+		match := false
+		for _, toRm := range links {
+			if ref, ok := toRm.Value.(*ExtraLink); ok {
+				if el.Id == ref.Id {
+					match = true
+					break
+				}
+			}
+		}
+		if !match {
+			newLinks = append(newLinks, el)
+		}
+	}
+	l.extraLinks = newLinks
 }
 
 func (l *Liner) GetLineNumber() int {
