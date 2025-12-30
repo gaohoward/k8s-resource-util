@@ -232,6 +232,18 @@ type SaveSelectionMenuAction struct {
 	EditorMenuBase
 }
 
+type ClearSelectionMenuAction struct {
+	EditorMenuBase
+}
+
+func (sma *ClearSelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
+	for _, liner := range editor.selectedLines {
+		liner.isSelected = false
+	}
+	editor.selectedLines = make([]*Liner, 0)
+	return nil
+}
+
 func (sma *SaveSelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
 	go func() {
 		writer, err := GetExplorer().CreateFile("selection_unnamed")
@@ -299,6 +311,16 @@ func NewSaveSelectionMenuAction() *SaveSelectionMenuAction {
 	return saveSelAct
 }
 
+func NewClearSelectionMenuAction() *ClearSelectionMenuAction {
+	clearSelAct := &ClearSelectionMenuAction{
+		EditorMenuBase: EditorMenuBase{
+			Name: "Clear Selection",
+			icon: graphics.ClearIcon,
+		},
+	}
+	return clearSelAct
+}
+
 func NewReadOnlyEditor(hint string, textSize int, actions []MenuAction, useFilter bool) *ReadOnlyEditor {
 	se := &ReadOnlyEditor{
 		id:              uuid.New().String(),
@@ -330,6 +352,9 @@ func NewReadOnlyEditor(hint string, textSize int, actions []MenuAction, useFilte
 
 	saveSelAct := NewSaveSelectionMenuAction()
 	allActs = append(allActs, saveSelAct)
+
+	clearSelAct := NewClearSelectionMenuAction()
+	allActs = append(allActs, clearSelAct)
 
 	allActs = append(allActs, actions...)
 
