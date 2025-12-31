@@ -15,13 +15,15 @@ type TextDialog struct {
 	editor         *ReadOnlyEditor
 	closeClickable widget.Clickable
 	onClose        func()
+	beforeLayout   func()
 }
 
-func NewTextDialog(title string, subTitle string, content string, onClose func()) *TextDialog {
+func NewTextDialog(title string, subTitle string, content string, onClose func(), beforeLayout func()) *TextDialog {
 	td := &TextDialog{
-		title:    title,
-		subTitle: subTitle,
-		onClose:  onClose,
+		title:        title,
+		subTitle:     subTitle,
+		onClose:      onClose,
+		beforeLayout: beforeLayout,
 	}
 	td.editor = NewReadOnlyEditor("content", 14, nil, false)
 	td.editor.SetText(&content, nil)
@@ -30,6 +32,10 @@ func NewTextDialog(title string, subTitle string, content string, onClose func()
 
 func (td *TextDialog) Layout(
 	gtx layout.Context) layout.Dimensions {
+
+	if td.beforeLayout != nil {
+		td.beforeLayout()
+	}
 
 	children := make([]layout.FlexChild, 5)
 

@@ -113,6 +113,8 @@ type ReadOnlyEditor struct {
 
 	menuState       component.MenuState
 	menuContextArea component.ContextArea
+	DisableMenu     bool
+
 	customActionMap map[string]MenuAction
 	selectedLines   []*Liner
 
@@ -680,6 +682,9 @@ func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *str
 	if l.extraContent != nil {
 		l.extraDialog = NewTextDialog("content", "", *l.extraContent, func() {
 			l.showExtra = false
+			se.DisableMenu = false
+		}, func() {
+			se.DisableMenu = true
 		})
 	}
 
@@ -687,10 +692,16 @@ func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *str
 		l.note = NewLineNote(*note, se)
 		l.noteDialog = NewTextDialog("note", "", *note, func() {
 			l.showNote = false
+			se.DisableMenu = false
+		}, func() {
+			se.DisableMenu = true
 		})
 	} else {
 		l.noteDialog = NewTextDialog("note", "", "", func() {
 			l.showNote = false
+			se.DisableMenu = false
+		}, func() {
+			se.DisableMenu = true
 		})
 	}
 
@@ -766,13 +777,11 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-
 			if len(se.originContent) == 0 {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					contentPart,
 				)
 			}
-
 			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 				filterPart,
 				contentPart,
@@ -780,6 +789,9 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 		}),
 		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
 			return se.menuContextArea.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				if se.DisableMenu {
+					return layout.Dimensions{}
+				}
 				gtx.Constraints.Min = image.Point{}
 				return component.Menu(GetTheme(), &se.menuState).Layout(gtx)
 			})
