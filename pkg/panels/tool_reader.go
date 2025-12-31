@@ -214,7 +214,6 @@ func (fp *FilePane) Layout(gtx layout.Context) layout.Dimensions {
 
 	reqData, extra := common.PollContextData(fp.noteContextKey)
 	if reqData != nil {
-		logger.Info("we have got something")
 		isDelete := ptr.To(false)
 		okBool := false
 		if liner, ok := reqData.(*common.Liner); ok {
