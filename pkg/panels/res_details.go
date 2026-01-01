@@ -512,7 +512,7 @@ func (pd *PodLogDetail) Init(status common.ResStatusInfo) error {
 	reloadLogAct := NewReloadLogAction(pd)
 	actions = append(actions, reloadLogAct)
 
-	pd.logEditor = common.NewReadOnlyEditor("log", 16, actions, true)
+	pd.logEditor = common.NewReadOnlyEditor("log", 15, actions, true)
 
 	pd.divider = component.Divider(th)
 	pd.divider.Fill = common.COLOR.Gray
@@ -597,7 +597,7 @@ func NewConfigMapCertDetail(cm *corev1.ConfigMap, item *unstructured.Unstructure
 		configMap:      cm,
 	}
 
-	cmcd.editor = common.NewReadOnlyEditor("cert", 16, nil, true)
+	cmcd.editor = common.NewReadOnlyEditor("cert", 15, nil, true)
 
 	cmcd.editor.SetText(cmcd.getCertContent(), nil)
 
@@ -660,7 +660,7 @@ func NewSecretDataDetail(secret *corev1.Secret, item *unstructured.Unstructured)
 		Secret:         secret,
 	}
 
-	sdd.editor = common.NewReadOnlyEditor("data", 16, nil, true)
+	sdd.editor = common.NewReadOnlyEditor("data", 15, nil, true)
 
 	sdd.editor.SetText(sdd.getDecodedData(), nil)
 
@@ -702,7 +702,7 @@ func NewSecretTlsDetail(secret *corev1.Secret, item *unstructured.Unstructured) 
 		content:        "",
 	}
 
-	sd.contentEditor = common.NewReadOnlyEditor("describe", 16, nil, true)
+	sd.contentEditor = common.NewReadOnlyEditor("describe", 15, nil, true)
 
 	sd.contentEditor.SetText(sd.getCertContent(), nil)
 
