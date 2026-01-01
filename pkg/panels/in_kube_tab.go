@@ -55,10 +55,8 @@ type InKubeTab struct {
 
 	searchField widget.Editor
 
-	nsList  widget.List
-	resList widget.List
-
-	namespaceItems []*NamespaceItem
+	nsList  *common.ReadOnlyEditor
+	resList *common.ReadOnlyEditor
 
 	//need order and also need search
 	resourceItems   []*ResourceItem
@@ -117,7 +115,44 @@ type SearchCriteria struct {
 	Res        *om.OrderedMap[string, *ResourceItem]
 	Valid      bool
 	InvalidMsg string
-	changed    bool
+}
+
+func (s *SearchCriteria) Update(nsLines []*common.Liner, nsItems []*common.Liner, t *InKubeTab) bool {
+	changed := false
+	if len(nsLines) != s.Ns.Len() || len(nsItems) != s.Res.Len() {
+		changed = true
+	} else {
+		for _, l := range nsLines {
+			ns := strings.TrimSpace(l.GetContent())
+			if _, exists := s.Ns.Get(ns); !exists {
+				changed = true
+				break
+			}
+		}
+		for _, item := range nsItems {
+			item := strings.TrimSpace(item.GetContent())
+			if _, exists := s.Res.Get(item); !exists {
+				changed = true
+				break
+			}
+		}
+	}
+	if changed {
+		s.Ns = om.New[string, string]()
+		for _, l := range nsLines {
+			ns := strings.TrimSpace(l.GetContent())
+			s.Ns.Set(ns, ns)
+		}
+		s.Res = om.New[string, *ResourceItem]()
+		for _, item := range nsItems {
+			item := strings.TrimSpace(item.GetContent())
+			if entry, ok := t.resourceItemMap[item]; ok {
+				s.Res.Set(item, entry)
+			}
+		}
+	}
+
+	return changed
 }
 
 func (s SearchCriteria) GetTargetNamespaces() []string {
@@ -131,22 +166,18 @@ func (s SearchCriteria) GetTargetNamespaces() []string {
 // add or update
 func (s *SearchCriteria) AddNs(ns string) {
 	s.Ns.Set(ns, ns)
-	s.changed = true
 }
 
 func (s *SearchCriteria) RemoveNs(ns string) {
 	s.Ns.Delete(ns)
-	s.changed = true
 }
 
 func (s *SearchCriteria) AddRes(gvr string, item *ResourceItem) {
 	s.Res.Set(gvr, item)
-	s.changed = true
 }
 
 func (s *SearchCriteria) RemoveRes(gvr string) {
 	s.Res.Delete(gvr)
-	s.changed = true
 }
 
 func (s *SearchCriteria) Reset() {
@@ -154,11 +185,6 @@ func (s *SearchCriteria) Reset() {
 	s.Res = om.New[string, *ResourceItem]()
 	s.InvalidMsg = ""
 	s.Valid = true
-	s.changed = false
-}
-
-func (s *SearchCriteria) Changed() bool {
-	return s.changed
 }
 
 func (s *SearchCriteria) Compile() string {
@@ -175,8 +201,6 @@ func (s *SearchCriteria) Compile() string {
 		builder.WriteString(pair.Key)
 		builder.WriteString(" ")
 	}
-
-	s.changed = false
 
 	return strings.TrimSpace(builder.String())
 }
@@ -254,7 +278,6 @@ func (r *ResourceItem) GetGvr() string {
 }
 
 func (t *InKubeTab) RefreshNamespaces() {
-	t.namespaceItems = make([]*NamespaceItem, 0)
 	allNamespaces, err := t.client.FetchAllNamespaces()
 	if err != nil {
 		logger.Info("failed to refresh namespaces")
@@ -264,12 +287,9 @@ func (t *InKubeTab) RefreshNamespaces() {
 	slices.SortFunc(allNamespaces, func(a, b string) int {
 		return strings.Compare(a, b)
 	})
-	for _, n := range allNamespaces {
-		t.namespaceItems = append(t.namespaceItems, &NamespaceItem{
-			ns: n,
-		})
-	}
 
+	nsList := strings.Join(allNamespaces, "\n")
+	t.nsList.SetText(&nsList, nil)
 }
 
 func (t *InKubeTab) RefreshApiResources(force bool) {
@@ -292,6 +312,13 @@ func (t *InKubeTab) RefreshApiResources(force bool) {
 			return strings.Compare(a.GetGvr(), b.GetGvr())
 		})
 	}
+
+	itemLines := make([]string, 0)
+	for _, item := range t.resourceItems {
+		itemLines = append(itemLines, item.GetGvr())
+	}
+	content := strings.Join(itemLines, "\n")
+	t.resList.SetText(&content, nil)
 }
 
 type SearchResultItem struct {
@@ -543,6 +570,9 @@ func NewInKubeTab(client k8sservice.K8sService) *InKubeTab {
 		},
 	}
 
+	tab.nsList = common.NewReadOnlyEditor("namespace", 14, nil, true)
+	tab.resList = common.NewReadOnlyEditor("resource", 14, nil, true)
+
 	tab.currentCriteria = SearchCriteria{
 		Ns:    om.New[string, string](),
 		Res:   om.New[string, *ResourceItem](),
@@ -598,9 +628,6 @@ func NewInKubeTab(client k8sservice.K8sService) *InKubeTab {
 	tab.resize2.Ratio = 0.3
 	tab.resultResize.Ratio = 0.4
 
-	tab.nsList.Axis = layout.Vertical
-	tab.resList.Axis = layout.Vertical
-
 	tab.searchField.SingleLine = true
 	tab.searchField.LineHeight = unit.Sp(18)
 	tab.searchField.LineHeightScale = 0.8
@@ -621,10 +648,15 @@ func NewInKubeTab(client k8sservice.K8sService) *InKubeTab {
 	common.SetContextBool(CONTEXT_KEY_API_RESOURCE, tab.showApiResButton.Value, nil)
 
 	searchBar := func(gtx layout.Context) layout.Dimensions {
-		//only set text when changes!
-		if tab.currentCriteria.Changed() {
+		nsLines := tab.nsList.GetSelectedLines()
+		nsItems := tab.resList.GetSelectedLines()
+
+		changed := tab.currentCriteria.Update(nsLines, nsItems, tab)
+
+		if changed {
 			tab.searchField.SetText(tab.currentCriteria.Compile())
 		}
+
 		editor := material.Editor(th, &tab.searchField, "search criteria")
 		editor.Font.Weight = font.Bold
 		editor.Color = common.COLOR.Blue
@@ -637,79 +669,78 @@ func NewInKubeTab(client k8sservice.K8sService) *InKubeTab {
 	}
 
 	nsPanel := func(gtx layout.Context) layout.Dimensions {
-		if len(tab.namespaceItems) == 0 {
-			return material.H6(th, "no namespaces availale").Layout(gtx)
-		}
-		return material.List(th, &tab.nsList).Layout(gtx, len(tab.namespaceItems), func(gtx layout.Context, index int) layout.Dimensions {
-			item := tab.namespaceItems[index]
-			if item.nsBtn.Clicked(gtx) {
-				item.selected = !item.selected
-				if item.selected {
-					tab.currentCriteria.AddNs(item.ns)
-				} else {
-					tab.currentCriteria.RemoveNs(item.ns)
-				}
-			}
-			selectionMarker := " "
-			if item.selected {
-				selectionMarker = "*"
-			}
-			return material.Clickable(gtx, &item.nsBtn, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-					layout.Rigid(layout.Spacer{Width: 4}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						marker := material.Label(th, unit.Sp(16), selectionMarker)
-						gtx.Constraints.Min.X = 16
-						return marker.Layout(gtx)
-					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						flatBtnText := material.Label(th, unit.Sp(16), item.ns)
-						if item.selected {
-							flatBtnText.Font.Weight = font.Bold
-						}
-						return flatBtnText.Layout(gtx)
-					}),
-				)
-			})
-		})
+		return tab.nsList.Layout(gtx)
+		// return material.List(th, &tab.nsList).Layout(gtx, len(tab.namespaceItems), func(gtx layout.Context, index int) layout.Dimensions {
+		// 	item := tab.namespaceItems[index]
+		// 	if item.nsBtn.Clicked(gtx) {
+		// 		item.selected = !item.selected
+		// 		if item.selected {
+		// 			tab.currentCriteria.AddNs(item.ns)
+		// 		} else {
+		// 			tab.currentCriteria.RemoveNs(item.ns)
+		// 		}
+		// 	}
+		// 	selectionMarker := " "
+		// 	if item.selected {
+		// 		selectionMarker = "*"
+		// 	}
+		// 	return material.Clickable(gtx, &item.nsBtn, func(gtx layout.Context) layout.Dimensions {
+		// 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+		// 			layout.Rigid(layout.Spacer{Width: 4}.Layout),
+		// 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		// 				marker := material.Label(th, unit.Sp(16), selectionMarker)
+		// 				gtx.Constraints.Min.X = 16
+		// 				return marker.Layout(gtx)
+		// 			}),
+		// 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		// 				flatBtnText := material.Label(th, unit.Sp(16), item.ns)
+		// 				if item.selected {
+		// 					flatBtnText.Font.Weight = font.Bold
+		// 				}
+		// 				return flatBtnText.Layout(gtx)
+		// 			}),
+		// 		)
+		// 	})
+		// })
 	}
 
 	apiResPanel := func(gtx layout.Context) layout.Dimensions {
 		if len(tab.resourceItems) == 0 {
 			return material.H6(th, "no api resources availale").Layout(gtx)
 		}
-		return material.List(th, &tab.resList).Layout(gtx, len(tab.resourceItems), func(gtx layout.Context, index int) layout.Dimensions {
-			item := tab.resourceItems[index]
-			if item.resBtn.Clicked(gtx) {
-				item.selected = !item.selected
-				if item.selected {
-					tab.currentCriteria.AddRes(item.GetGvr(), item)
-				} else {
-					tab.currentCriteria.RemoveRes(item.GetGvr())
-				}
-			}
-			selectionMarker := " "
-			if item.selected {
-				selectionMarker = "*"
-			}
-			return material.Clickable(gtx, &item.resBtn, func(gtx layout.Context) layout.Dimensions {
-				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-					layout.Rigid(layout.Spacer{Width: 4}.Layout),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						marker := material.Label(th, unit.Sp(16), selectionMarker)
-						gtx.Constraints.Min.X = 16
-						return marker.Layout(gtx)
-					}),
-					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-						flatBtnText := material.Label(th, unit.Sp(16), item.verInfo.Gv+"/"+item.verInfo.Name)
-						if item.selected {
-							flatBtnText.Font.Weight = font.Bold
-						}
-						return flatBtnText.Layout(gtx)
-					}),
-				)
-			})
-		})
+		return tab.resList.Layout(gtx)
+		// return material.List(th, &tab.resList).Layout(gtx, len(tab.resourceItems), func(gtx layout.Context, index int) layout.Dimensions {
+		// 	item := tab.resourceItems[index]
+		// 	if item.resBtn.Clicked(gtx) {
+		// 		item.selected = !item.selected
+		// 		if item.selected {
+		// 			tab.currentCriteria.AddRes(item.GetGvr(), item)
+		// 		} else {
+		// 			tab.currentCriteria.RemoveRes(item.GetGvr())
+		// 		}
+		// 	}
+		// 	selectionMarker := " "
+		// 	if item.selected {
+		// 		selectionMarker = "*"
+		// 	}
+		// 	return material.Clickable(gtx, &item.resBtn, func(gtx layout.Context) layout.Dimensions {
+		// 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+		// 			layout.Rigid(layout.Spacer{Width: 4}.Layout),
+		// 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		// 				marker := material.Label(th, unit.Sp(16), selectionMarker)
+		// 				gtx.Constraints.Min.X = 16
+		// 				return marker.Layout(gtx)
+		// 			}),
+		// 			layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+		// 				flatBtnText := material.Label(th, unit.Sp(16), item.verInfo.Gv+"/"+item.verInfo.Name)
+		// 				if item.selected {
+		// 					flatBtnText.Font.Weight = font.Bold
+		// 				}
+		// 				return flatBtnText.Layout(gtx)
+		// 			}),
+		// 		)
+		// 	})
+		// })
 	}
 
 	resultPanel := func(gtx layout.Context) layout.Dimensions {

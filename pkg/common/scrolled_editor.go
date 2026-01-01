@@ -427,6 +427,10 @@ type Liner struct {
 	originalLineIndex       int
 }
 
+func (l *Liner) GetContent() string {
+	return *l.content
+}
+
 func (l *Liner) GetLinks() []*ExtraLink {
 	return l.extraLinks
 }
