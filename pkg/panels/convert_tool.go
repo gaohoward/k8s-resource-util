@@ -824,7 +824,7 @@ func NewConvertTool() Tool {
 	c.targetEditor = common.NewReadOnlyEditor("", 16, nil, true)
 
 	c.optEdit = common.NewOptionDialogTarget(nil, nil, nil)
-	c.optDialog = common.NewEditDialog("", "", "", nil)
+	c.optDialog = common.NewEditDialog("", "", "", c.optEdit)
 
 	c.initMenu()
 
