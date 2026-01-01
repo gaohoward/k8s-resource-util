@@ -16,6 +16,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 )
 
 var logger *zap.Logger
@@ -106,9 +107,8 @@ type ApiResourcesTab struct {
 	schemaResize component.Resize
 	current      ApiResourceItem
 	detailPage   widget.Editor
-	schemaPage   widget.Editor
 	detailEditor material.EditorStyle
-	schemaEditor material.EditorStyle
+	schemaEditor *common.ReadOnlyEditor
 	inAppLogger  *zap.Logger
 }
 
@@ -137,9 +137,9 @@ func (a *ApiResourcesTab) processClick(item ApiResourceItem, gtx layout.Context)
 		a.current = item
 		a.detailPage.SetText(item.ToYaml())
 		if s := item.GetSchema(); s != "" {
-			a.schemaPage.SetText(item.GetSchema())
+			a.schemaEditor.SetText(ptr.To(s), nil)
 		} else {
-			a.schemaPage.SetText("no schema available")
+			a.schemaEditor.SetText(ptr.To("no schema available"), nil)
 		}
 	}
 }
@@ -281,16 +281,13 @@ func NewApiResourcesTab(client k8sservice.K8sService) *ApiResourcesTab {
 		tab.detailPage.SetText(tab.current.ToYaml())
 	}
 
-	tab.schemaEditor = material.Editor(th, &tab.schemaPage, "schema")
-	tab.schemaEditor.Font.Typeface = "monospace"
-	//	tab.schemaEditor.Font.Weight = font.Bold
-	tab.schemaEditor.TextSize = unit.Sp(15)
-	tab.schemaEditor.LineHeight = unit.Sp(15)
+	tab.schemaEditor = common.NewReadOnlyEditor("schema-viewer", 15, nil, true)
+
 	if tab.current != nil {
 		if tab.current.GetSchema() != "" {
-			tab.schemaPage.SetText(tab.current.GetSchema())
+			tab.schemaEditor.SetText(ptr.To(tab.current.GetSchema()), nil)
 		} else {
-			tab.schemaPage.SetText("no schema available")
+			tab.schemaEditor.SetText(ptr.To("no schema available"), nil)
 		}
 	}
 
