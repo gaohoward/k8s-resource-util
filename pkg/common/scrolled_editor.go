@@ -20,6 +20,11 @@ import (
 	"gioui.org/x/component"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"k8s.io/utils/ptr"
+)
+
+const (
+	GOTO_LINE_INFO = "goto.line.info"
 )
 
 type Filter struct {
@@ -122,6 +127,8 @@ type ReadOnlyEditor struct {
 	filter   *Filter
 
 	eventListener EditorEventListener
+
+	gotoLineKey string
 }
 
 func (se *ReadOnlyEditor) GetId() string {
@@ -332,10 +339,13 @@ func NewReadOnlyEditor(hint string, textSize int, actions []MenuAction, useFilte
 		filterOn:        useFilter,
 	}
 
+	se.gotoLineKey = GOTO_LINE_INFO + "." + se.id
+
 	if useFilter {
 		se.filter = NewFilter(nil, se.id)
-		RegisterContext(se.id, false, true)
+		RegisterContext(se.id, false, true) // it seems not used.
 	}
+	RegisterContext(se.gotoLineKey, nil, true)
 
 	se.list.Axis = layout.Vertical
 
@@ -422,9 +432,11 @@ type Liner struct {
 	lineLabel               material.LabelStyle
 	lineNumberLabel         material.LabelStyle
 	originalLineNumberLabel material.LabelStyle
-	clickable               widget.Clickable
-	isSelected              bool
-	originalLineIndex       int
+	gotoClickable           widget.Clickable
+
+	clickable         widget.Clickable
+	isSelected        bool
+	originalLineIndex int
 }
 
 func (l *Liner) GetContent() string {
@@ -504,7 +516,7 @@ func (l *Liner) Clicked() bool {
 	return l.isSelected
 }
 
-func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dimensions {
+func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int, se *ReadOnlyEditor) layout.Dimensions {
 
 	if l.isSelected {
 		l.lineNumberLabel.Color = COLOR.Black
@@ -534,6 +546,11 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 		}
 	}
 
+	if l.gotoClickable.Clicked(gtx) {
+		// disable filter and to to the line
+		SetContextData(se.gotoLineKey, ptr.To(l.originalLineIndex), nil)
+	}
+
 	if l.originalLineIndex != index {
 		//filtered
 		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
@@ -546,7 +563,9 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int) layout.Dime
 							return l.lineNumberLabel.Layout(gtx)
 						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-							return l.originalLineNumberLabel.Layout(gtx)
+							return material.Clickable(gtx, &l.gotoClickable, func(gtx layout.Context) layout.Dimensions {
+								return l.originalLineNumberLabel.Layout(gtx)
+							})
 						}),
 						layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 							if len(l.extraLinks) > 0 {
@@ -746,6 +765,14 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 		}
 	}
 
+	data, _ := PollContextData(se.gotoLineKey)
+	if data != nil {
+		if lineIdxPtr, ok := data.(*int); ok {
+			se.filter.filterField.searchArea.SetText("")
+			se.list.ScrollTo(*lineIdxPtr)
+		}
+	}
+
 	listStyle := material.List(GetTheme(), &se.list)
 	content := se.GetContent()
 	tot := len(content)
@@ -774,7 +801,7 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 				lineNumberWidth = numSize.Size.X
 			}
 
-			return liner.Layout(gtx, lineNumberWidth, index)
+			return liner.Layout(gtx, lineNumberWidth, index, se)
 
 		})
 	})
