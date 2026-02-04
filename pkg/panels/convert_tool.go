@@ -222,6 +222,30 @@ func (j JwtConverter) GetName() string {
 }
 
 type Base64Converter struct {
+	urlEncoding bool
+	raw         bool
+}
+
+func NewBase64Converter(options map[string]string) *Base64Converter {
+	urlEnc := false
+	rawEnc := false
+
+	if val, ok := options["urlEncoding"]; ok {
+		parsed, err := strconv.ParseBool(val)
+		if err == nil {
+			urlEnc = parsed
+		}
+	}
+	if rawVal, ok := options["Raw"]; ok {
+		parsed, err := strconv.ParseBool(rawVal)
+		if err == nil {
+			rawEnc = parsed
+		}
+	}
+	return &Base64Converter{
+		urlEncoding: urlEnc,
+		raw:         rawEnc,
+	}
 }
 
 func (b *Base64Converter) GetSourceEditor() *layout.Widget {
@@ -235,7 +259,23 @@ func (b *Base64Converter) GetType() ConvertKind {
 
 // Convert implements Converter.
 func (b *Base64Converter) Convert(source *Source) *Source {
-	encoded := base64.StdEncoding.EncodeToString(source.content)
+	encoded := ""
+	encoding := base64.StdEncoding
+
+	if b.urlEncoding {
+		if b.raw {
+			encoding = base64.RawURLEncoding
+		} else {
+			encoding = base64.URLEncoding
+		}
+	} else {
+		if b.raw {
+			encoding = base64.RawStdEncoding
+		}
+	}
+
+	encoded = encoding.EncodeToString(source.content)
+
 	return &Source{
 		sourceType: TextType,
 		content:    []byte(encoded),
@@ -248,10 +288,70 @@ func (b *Base64Converter) GetName() string {
 }
 
 type Base64DecodeConverter struct {
+	urlEncoding bool
+	raw         bool
+}
+
+func NewBase64DecodeConverter(options map[string]string) *Base64DecodeConverter {
+	urlEnc := false
+	rawEnv := false
+
+	if val, ok := options["urlEncoding"]; ok {
+		parsed, err := strconv.ParseBool(val)
+		if err == nil {
+			urlEnc = parsed
+		}
+	}
+	if rawVal, ok := options["Raw"]; ok {
+		parsed, err := strconv.ParseBool(rawVal)
+		if err == nil {
+			rawEnv = parsed
+		}
+	}
+	return &Base64DecodeConverter{
+		urlEncoding: urlEnc,
+		raw:         rawEnv,
+	}
 }
 
 func (b *Base64DecodeConverter) GetSourceEditor() *layout.Widget {
 	return nil
+}
+
+// GetType implements Converter.
+func (b *Base64DecodeConverter) GetType() ConvertKind {
+	return base64DecodeKind
+}
+
+// Convert implements Converter.
+func (b *Base64DecodeConverter) Convert(source *Source) *Source {
+	var result []byte
+	var err error
+	encoding := base64.StdEncoding
+	if b.urlEncoding {
+		if b.raw {
+			encoding = base64.RawURLEncoding
+		} else {
+			encoding = base64.URLEncoding
+		}
+	} else {
+		if b.raw {
+			encoding = base64.RawStdEncoding
+		}
+	}
+
+	result, err = encoding.DecodeString(string(source.content))
+
+	return &Source{
+		writable: false,
+		content:  result,
+		err:      err,
+	}
+}
+
+// GetName implements Converter.
+func (b *Base64DecodeConverter) GetName() string {
+	return "base64Decode"
 }
 
 type X509CertGenConverter struct {
@@ -447,34 +547,14 @@ func (x *X509CertDecodeConverter) GetType() ConvertKind {
 	return x509CertDecodeKind
 }
 
-// GetType implements Converter.
-func (b *Base64DecodeConverter) GetType() ConvertKind {
-	return base64DecodeKind
-}
-
-// Convert implements Converter.
-func (b *Base64DecodeConverter) Convert(source *Source) *Source {
-	result, err := base64.StdEncoding.DecodeString(string(source.content))
-	return &Source{
-		writable: false,
-		content:  result,
-		err:      err,
-	}
-}
-
-// GetName implements Converter.
-func (b *Base64DecodeConverter) GetName() string {
-	return "base64Decode"
-}
-
 func CreateConverter(kind ConvertKind, options map[string]string) (Converter, error) {
 	switch kind {
 	case jwtKind:
 		return &JwtConverter{}, nil
 	case base64Kind:
-		return &Base64Converter{}, nil
+		return NewBase64Converter(options), nil
 	case base64DecodeKind:
-		return &Base64DecodeConverter{}, nil
+		return NewBase64DecodeConverter(options), nil
 	case x509CertDecodeKind:
 		return &X509CertDecodeConverter{}, nil
 	case x509CertGenKind:
@@ -528,6 +608,10 @@ type ConvertAction struct {
 func (k *ConvertKind) GetOptionKeysAndValues() (string, string, []string, []string, []string) {
 
 	switch *k {
+	case base64Kind:
+		return "Base64 Config", "", []string{"urlEncoding", "Raw"}, []string{"false", "false"}, []string{"use URL encoding", "raw encoding"}
+	case base64DecodeKind:
+		return "Base64 Decode Config", "", []string{"urlEncoding", "Raw"}, []string{"false", "false"}, []string{"use URL encoding", "raw encoding"}
 	case jwtKind:
 		return "Jwt Config", "", []string{"algorithm"}, nil, nil
 	case x509CertGenKind:
