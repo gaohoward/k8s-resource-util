@@ -25,7 +25,7 @@ func NewTextDialog(title string, subTitle string, content string, onClose func()
 		onClose:      onClose,
 		beforeLayout: beforeLayout,
 	}
-	td.editor = NewReadOnlyEditor("content", 14, nil, false)
+	td.editor = NewReadOnlyEditor("content", 14, nil, nil, false)
 	td.editor.SetText(&content, nil)
 	return td
 }

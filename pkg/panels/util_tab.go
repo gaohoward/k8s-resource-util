@@ -206,7 +206,7 @@ func NewRawApiTool(client k8sservice.K8sService) *RawApiTool {
 		kubeClient: client,
 	}
 
-	rt.result = common.NewReadOnlyEditor("result", 16, nil, true)
+	rt.result = common.NewReadOnlyEditor("result", 16, nil, nil, true)
 
 	rt.uriField.SingleLine = true
 	rt.uriField.Submit = true

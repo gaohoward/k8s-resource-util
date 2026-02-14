@@ -89,7 +89,7 @@ func NewDescribeDetail(item *unstructured.Unstructured) common.IResourceDetail {
 		ResourceDetail: NewDetail("describe", item),
 	}
 
-	d.contentEditor = common.NewReadOnlyEditor("describe", 16, nil, true)
+	d.contentEditor = common.NewReadOnlyEditor("describe", 16, nil, nil, true)
 
 	d.contentEditor.SetText(d.getDescribeContent(), nil)
 
@@ -150,7 +150,7 @@ func NewYamlDetail(item *unstructured.Unstructured) common.IResourceDetail {
 		d.yamlContent = yamlStr
 	}
 
-	d.ymlEditor = common.NewReadOnlyEditor("Yaml", 16, nil, true)
+	d.ymlEditor = common.NewReadOnlyEditor("Yaml", 16, nil, nil, true)
 	d.ymlEditor.SetText(&d.yamlContent, nil)
 
 	return d
@@ -448,7 +448,7 @@ type ReloadLogAction struct {
 }
 
 // Execute implements common.MenuAction.
-func (r *ReloadLogAction) Execute(gtx layout.Context, se *common.ReadOnlyEditor) error {
+func (r *ReloadLogAction) Execute(gtx layout.Context, se *common.ReadOnlyEditor, _ *common.Liner) error {
 	if r.podLog.currentLog != nil {
 		r.podLog.currentLog.LoadLog(true)
 	}
@@ -512,7 +512,7 @@ func (pd *PodLogDetail) Init(status common.ResStatusInfo) error {
 	reloadLogAct := NewReloadLogAction(pd)
 	actions = append(actions, reloadLogAct)
 
-	pd.logEditor = common.NewReadOnlyEditor("log", 15, actions, true)
+	pd.logEditor = common.NewReadOnlyEditor("log", 15, actions, nil, true)
 
 	pd.divider = component.Divider(th)
 	pd.divider.Fill = common.COLOR.Gray
@@ -597,7 +597,7 @@ func NewConfigMapCertDetail(cm *corev1.ConfigMap, item *unstructured.Unstructure
 		configMap:      cm,
 	}
 
-	cmcd.editor = common.NewReadOnlyEditor("cert", 15, nil, true)
+	cmcd.editor = common.NewReadOnlyEditor("cert", 15, nil, nil, true)
 
 	cmcd.editor.SetText(cmcd.getCertContent(), nil)
 
@@ -660,7 +660,7 @@ func NewSecretDataDetail(secret *corev1.Secret, item *unstructured.Unstructured)
 		Secret:         secret,
 	}
 
-	sdd.editor = common.NewReadOnlyEditor("data", 15, nil, true)
+	sdd.editor = common.NewReadOnlyEditor("data", 15, nil, nil, true)
 
 	sdd.editor.SetText(sdd.getDecodedData(), nil)
 
@@ -702,7 +702,7 @@ func NewSecretTlsDetail(secret *corev1.Secret, item *unstructured.Unstructured) 
 		content:        "",
 	}
 
-	sd.contentEditor = common.NewReadOnlyEditor("describe", 15, nil, true)
+	sd.contentEditor = common.NewReadOnlyEditor("describe", 15, nil, nil, true)
 
 	sd.contentEditor.SetText(sd.getCertContent(), nil)
 

@@ -116,9 +116,9 @@ type ReadOnlyEditor struct {
 	textSize      int
 	text          *string
 
-	menuState       component.MenuState
-	menuContextArea component.ContextArea
-	DisableMenu     bool
+	DisableMenu bool
+	menuOptions []func(gtx layout.Context) layout.Dimensions
+	lineActions []LineAction
 
 	customActionMap map[string]MenuAction
 	selectedLines   []*Liner
@@ -184,7 +184,13 @@ type MenuAction interface {
 	GetName() string
 	GetMenuOption() func(gtx layout.Context) layout.Dimensions
 	GetClickable() *widget.Clickable
-	Execute(gtx layout.Context, se *ReadOnlyEditor) error
+	Execute(gtx layout.Context, se *ReadOnlyEditor, target *Liner) error
+}
+
+type LineAction interface {
+	GetName() string
+	GetIcon() *widget.Icon
+	Execute(gtx layout.Context, se *ReadOnlyEditor, target *Liner) error
 }
 
 type EditorMenuBase struct {
@@ -211,7 +217,7 @@ type CopyMenuAction struct {
 	EditorMenuBase
 }
 
-func (cma *CopyMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
+func (cma *CopyMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor, _ *Liner) error {
 	gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(editor.GetText()))})
 	return nil
 }
@@ -220,7 +226,7 @@ type SaveMenuAction struct {
 	EditorMenuBase
 }
 
-func (sma *SaveMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
+func (sma *SaveMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor, _ *Liner) error {
 	go func() {
 		writer, err := GetExplorer().CreateFile("unnamed")
 		if err != nil {
@@ -245,7 +251,7 @@ type ClearSelectionMenuAction struct {
 	EditorMenuBase
 }
 
-func (sma *ClearSelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
+func (sma *ClearSelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor, _ *Liner) error {
 	for _, liner := range editor.selectedLines {
 		liner.isSelected = false
 	}
@@ -253,7 +259,7 @@ func (sma *ClearSelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnl
 	return nil
 }
 
-func (sma *SaveSelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
+func (sma *SaveSelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor, _ *Liner) error {
 	go func() {
 		writer, err := GetExplorer().CreateFile("selection_unnamed")
 		if err != nil {
@@ -274,7 +280,7 @@ type CopySelectionMenuAction struct {
 	EditorMenuBase
 }
 
-func (sma *CopySelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor) error {
+func (sma *CopySelectionMenuAction) Execute(gtx layout.Context, editor *ReadOnlyEditor, _ *Liner) error {
 	Copy(editor)
 	gtx.Execute(clipboard.WriteCmd{Type: "application/text", Data: io.NopCloser(strings.NewReader(*editor.PasteContent()))})
 	return nil
@@ -330,7 +336,7 @@ func NewClearSelectionMenuAction() *ClearSelectionMenuAction {
 	return clearSelAct
 }
 
-func NewReadOnlyEditor(hint string, textSize int, actions []MenuAction, useFilter bool) *ReadOnlyEditor {
+func NewReadOnlyEditor(hint string, textSize int, actions []MenuAction, lineActions []LineAction, useFilter bool) *ReadOnlyEditor {
 	se := &ReadOnlyEditor{
 		id:              uuid.New().String(),
 		textSize:        textSize,
@@ -349,7 +355,7 @@ func NewReadOnlyEditor(hint string, textSize int, actions []MenuAction, useFilte
 
 	se.list.Axis = layout.Vertical
 
-	menuOptions := make([]func(gtx layout.Context) layout.Dimensions, 0)
+	se.menuOptions = make([]func(gtx layout.Context) layout.Dimensions, 0)
 
 	allActs := make([]MenuAction, 0)
 
@@ -372,12 +378,11 @@ func NewReadOnlyEditor(hint string, textSize int, actions []MenuAction, useFilte
 
 	for _, action := range allActs {
 		se.customActionMap[action.GetName()] = action
-		menuOptions = append(menuOptions, action.GetMenuOption())
+		se.menuOptions = append(se.menuOptions, action.GetMenuOption())
 	}
 
-	se.menuState = component.MenuState{
-		Options: menuOptions,
-	}
+	se.lineActions = lineActions
+
 	return se
 }
 
@@ -437,6 +442,10 @@ type Liner struct {
 	clickable         widget.Clickable
 	isSelected        bool
 	originalLineIndex int
+
+	menuState       component.MenuState
+	menuContextArea component.ContextArea
+	lineActions     []MenuAction
 }
 
 func (l *Liner) GetContent() string {
@@ -518,6 +527,14 @@ func (l *Liner) Clicked() bool {
 
 func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int, se *ReadOnlyEditor) layout.Dimensions {
 
+	for _, action := range l.lineActions {
+		if action.GetClickable().Clicked(gtx) {
+			if err := action.Execute(gtx, se, l); err != nil {
+				logger.Warn("error executing action", zap.String("action", action.GetName()), zap.Error(err))
+			}
+		}
+	}
+
 	if l.isSelected {
 		l.lineNumberLabel.Color = COLOR.Black
 		l.lineLabel.Color = COLOR.Blue
@@ -551,9 +568,11 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int, se *ReadOnl
 		SetContextData(se.gotoLineKey, ptr.To(l.originalLineIndex), nil)
 	}
 
+	var dims layout.Dimensions
+
 	if l.originalLineIndex != index {
 		//filtered
-		return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+		dims = layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
 			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
 				return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
 
@@ -603,54 +622,70 @@ func (l *Liner) Layout(gtx layout.Context, lineWidth int, index int, se *ReadOnl
 				return layout.Dimensions{}
 			}),
 		)
-	}
+	} else {
 
-	return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-		layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
-			return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
-						return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								gtx.Constraints.Min.X = lineWidth
-								return l.lineNumberLabel.Layout(gtx)
-							}),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								if len(l.extraLinks) > 0 {
-									return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
-										lk := l.extraLinks[index]
-										if lk.linkClickable.Clicked(gtx) {
-											lk.SourceEditor.ExtraLinkClicked(lk)
-										}
+		dims = layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+			layout.Flexed(1.0, func(gtx layout.Context) layout.Dimensions {
+				return layout.Flex{Axis: layout.Horizontal}.Layout(gtx,
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return material.Clickable(gtx, &l.clickable, func(gtx layout.Context) layout.Dimensions {
+							return layout.Flex{Axis: layout.Horizontal, Alignment: layout.Middle}.Layout(gtx,
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									gtx.Constraints.Min.X = lineWidth
+									return l.lineNumberLabel.Layout(gtx)
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									if len(l.extraLinks) > 0 {
+										return l.linkList.Layout(gtx, len(l.extraLinks), func(gtx layout.Context, index int) layout.Dimensions {
+											lk := l.extraLinks[index]
+											if lk.linkClickable.Clicked(gtx) {
+												lk.SourceEditor.ExtraLinkClicked(lk)
+											}
 
-										return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
-									})
-								}
-								return layout.Dimensions{}
-							}),
-							layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-								return l.lineLabel.Layout(gtx)
-							}),
-						)
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					return material.Clickable(gtx, &l.extraClickable, func(gtx layout.Context) layout.Dimensions {
-						if l.extraContent != nil {
-							return l.extraLabel.Layout(gtx)
+											return material.Clickable(gtx, &lk.linkClickable, lk.Layout)
+										})
+									}
+									return layout.Dimensions{}
+								}),
+								layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+									return l.lineLabel.Layout(gtx)
+								}),
+							)
+						})
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						return material.Clickable(gtx, &l.extraClickable, func(gtx layout.Context) layout.Dimensions {
+							if l.extraContent != nil {
+								return l.extraLabel.Layout(gtx)
+							}
+							return layout.Dimensions{}
+						})
+					}),
+					layout.Rigid(func(gtx layout.Context) layout.Dimensions {
+						if l.note != nil {
+							return material.Clickable(gtx, &l.note.noteClickable, func(gtx layout.Context) layout.Dimensions {
+								return l.note.noteLabel.Layout(gtx)
+							})
 						}
 						return layout.Dimensions{}
-					})
-				}),
-				layout.Rigid(func(gtx layout.Context) layout.Dimensions {
-					if l.note != nil {
-						return material.Clickable(gtx, &l.note.noteClickable, func(gtx layout.Context) layout.Dimensions {
-							return l.note.noteLabel.Layout(gtx)
-						})
-					}
+					}),
+				)
+			}),
+		)
+	}
+
+	return layout.Stack{}.Layout(gtx,
+		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
+			return dims
+		}),
+		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
+			return l.menuContextArea.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
+				if se.DisableMenu {
 					return layout.Dimensions{}
-				}),
-			)
+				}
+				gtx.Constraints.Min = image.Point{}
+				return component.Menu(GetTheme(), &l.menuState).Layout(gtx)
+			})
 		}),
 	)
 }
@@ -734,7 +769,48 @@ func (se *ReadOnlyEditor) NewLiner(content *string, index int, extraContent *str
 		l.extraLinks = append(l.extraLinks, el)
 	}
 
+	l.lineActions = make([]MenuAction, 0)
+	for _, action := range se.lineActions {
+		l.lineActions = append(l.lineActions, NewLineAction(action))
+	}
+
+	menuOptions := make([]func(gtx layout.Context) layout.Dimensions, 0)
+	menuOptions = append(menuOptions, se.menuOptions...)
+	for _, action := range l.lineActions {
+		menuOptions = append(menuOptions, action.GetMenuOption())
+	}
+
+	l.menuState = component.MenuState{
+		Options: menuOptions,
+	}
+
 	return l
+}
+
+type LineActionWrapper struct {
+	LineAction
+	clickable widget.Clickable
+	menuFunc  func(gtx layout.Context) layout.Dimensions
+}
+
+func (law *LineActionWrapper) GetClickable() *widget.Clickable {
+	return &law.clickable
+}
+
+func (law *LineActionWrapper) GetMenuOption() func(ctx layout.Context) layout.Dimensions {
+	return law.menuFunc
+}
+
+func NewLineAction(action LineAction) MenuAction {
+	a := &LineActionWrapper{
+		LineAction: action,
+		clickable:  widget.Clickable{},
+	}
+	a.menuFunc = func(gtx layout.Context) layout.Dimensions {
+		return ItemFunc(gtx, &a.clickable, a.GetName(), a.GetIcon())
+	}
+
+	return a
 }
 
 func NewExtraLink(id int, editor *ReadOnlyEditor, link string, textSize unit.Sp) *ExtraLink {
@@ -761,7 +837,7 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 
 	for _, v := range se.customActionMap {
 		if v.GetClickable().Clicked(gtx) {
-			v.Execute(gtx, se)
+			v.Execute(gtx, se, nil)
 		}
 	}
 
@@ -817,15 +893,6 @@ func (se *ReadOnlyEditor) Layout(gtx layout.Context) layout.Dimensions {
 				filterPart,
 				contentPart,
 			)
-		}),
-		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
-			return se.menuContextArea.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
-				if se.DisableMenu {
-					return layout.Dimensions{}
-				}
-				gtx.Constraints.Min = image.Point{}
-				return component.Menu(GetTheme(), &se.menuState).Layout(gtx)
-			})
 		}),
 	)
 }

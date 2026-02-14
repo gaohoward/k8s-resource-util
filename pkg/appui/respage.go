@@ -232,7 +232,7 @@ func (rp *ResourcePage) Init(rtclient k8sservice.K8sService, refreshCh chan int)
 	rp.crEditor.TextSize = unit.Sp(16)
 	rp.crEditor.LineHeight = unit.Sp(16)
 
-	rp.crdEditor = common.NewReadOnlyEditor("Schema", 16, nil, true)
+	rp.crdEditor = common.NewReadOnlyEditor("Schema", 16, nil, nil, true)
 
 	rp.SaveBtnTooltip = component.DesktopTooltip(th, "Save")
 	rp.DeployBtnTooltip = component.DesktopTooltip(th, "Deploy")

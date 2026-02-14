@@ -870,7 +870,7 @@ func NewX509CertGenerator(options map[string]string) (*X509CertGenConverter, err
 		ecdsaKey: ecdsaPrivKey,
 	}
 
-	c.configEditor = common.NewReadOnlyEditor("", 16, nil, true)
+	c.configEditor = common.NewReadOnlyEditor("", 16, nil, nil, true)
 	builder := strings.Builder{}
 	if len(options) > 0 {
 		for k, v := range options {
@@ -905,7 +905,7 @@ func NewConvertTool() Tool {
 	c := &ConvertTool{}
 	c.newTargetBtnTooltip = component.DesktopTooltip(common.GetTheme(), "New")
 	c.convWidgetList.Axis = layout.Vertical
-	c.targetEditor = common.NewReadOnlyEditor("", 16, nil, true)
+	c.targetEditor = common.NewReadOnlyEditor("", 16, nil, nil, true)
 
 	c.optEdit = common.NewOptionDialogTarget(nil, nil, nil)
 	c.optDialog = common.NewEditDialog("", "", "", c.optEdit)

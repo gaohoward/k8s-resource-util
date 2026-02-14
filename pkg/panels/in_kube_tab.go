@@ -570,8 +570,8 @@ func NewInKubeTab(client k8sservice.K8sService) *InKubeTab {
 		},
 	}
 
-	tab.nsList = common.NewReadOnlyEditor("namespace", 14, nil, true)
-	tab.resList = common.NewReadOnlyEditor("resource", 14, nil, true)
+	tab.nsList = common.NewReadOnlyEditor("namespace", 14, nil, nil, true)
+	tab.resList = common.NewReadOnlyEditor("resource", 14, nil, nil, true)
 
 	tab.currentCriteria = SearchCriteria{
 		Ns:    om.New[string, string](),

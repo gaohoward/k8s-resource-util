@@ -281,7 +281,7 @@ func NewApiResourcesTab(client k8sservice.K8sService) *ApiResourcesTab {
 		tab.detailPage.SetText(tab.current.ToYaml())
 	}
 
-	tab.schemaEditor = common.NewReadOnlyEditor("schema-viewer", 15, nil, true)
+	tab.schemaEditor = common.NewReadOnlyEditor("schema-viewer", 15, nil, nil, true)
 
 	if tab.current != nil {
 		if tab.current.GetSchema() != "" {

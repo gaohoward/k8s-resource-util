@@ -121,7 +121,7 @@ type FilePane struct {
 	noteContextKey    string
 	editor            *common.ReadOnlyEditor
 	resize            component.Resize
-	actions           []common.MenuAction
+	actions           []common.LineAction
 	controlBar        layout.Widget
 	titleLabel        material.LabelStyle
 	closeBtn          widget.Clickable
@@ -187,14 +187,14 @@ func (fn *FileNavigator) NewFilePane(item *FileItem) *FilePane {
 
 	fp.resize.Ratio = 0.4
 
-	fp.actions = []common.MenuAction{
+	fp.actions = []common.LineAction{
 		NewAddNoteAction(MENU_ADD_LINK, graphics.ResIcon, fp),
 		NewAddNoteAction(MENU_REMOVE_LINK, graphics.DeleteIcon, fp),
 		NewAddNoteAction(MENU_ADD_NOTE, graphics.AddIcon, fp),
 		NewAddNoteAction(MENU_REMOVE_NOTE, graphics.DeleteIcon, fp),
 	}
 
-	fp.editor = common.NewReadOnlyEditor("", 16, fp.actions, true)
+	fp.editor = common.NewReadOnlyEditor("", 16, nil, fp.actions, true)
 	data, err := os.ReadFile(item.FileUrl)
 	if err != nil {
 		errTxt := fmt.Sprintf("Failed to read file: %s\nError: %v", item.FileUrl, err)
@@ -348,10 +348,9 @@ func (fn *FileNavigator) ExtraLinkClicked(link *common.ExtraLink) {
 }
 
 type AddNoteAction struct {
-	name      string
-	clickable widget.Clickable
-	menuFunc  func(gtx layout.Context) layout.Dimensions
-	Pane      *FilePane
+	name string
+	icon *widget.Icon
+	Pane *FilePane
 }
 
 // FileChoosed implements common.FileHandler.
@@ -369,64 +368,36 @@ func (a *AddNoteAction) GetFilter() []string {
 }
 
 // Execute implements common.MenuAction.
-func (a *AddNoteAction) Execute(gtx layout.Context, se *common.ReadOnlyEditor) error {
+func (a *AddNoteAction) Execute(gtx layout.Context, se *common.ReadOnlyEditor, target *common.Liner) error {
 	switch a.name {
 	case MENU_ADD_NOTE:
-		a.DoAddNote(gtx, se)
+		a.DoAddNote(gtx, se, target)
 	case MENU_REMOVE_NOTE:
-		a.DoRemoveNote(gtx, se)
+		a.DoRemoveNote(gtx, se, target)
 	case MENU_ADD_LINK:
-		a.DoAddLink(gtx, se)
+		a.DoAddLink(gtx, se, target)
 	case MENU_REMOVE_LINK:
-		a.DoRemoveLink(gtx, se)
+		a.DoRemoveLink(gtx, se, target)
 	default:
 		logger.Warn("Unknown action executed", zap.String("action", a.name))
 	}
 	return nil
 }
 
-func (a AddNoteAction) DoRemoveLink(gtx layout.Context, se *common.ReadOnlyEditor) {
-	lines := se.GetSelectedLines()
-	if len(lines) == 0 {
-		return
-	}
-	common.SetContextData(a.Pane.linkContextKey, ptr.To(""), lines[0])
+func (a AddNoteAction) DoRemoveLink(gtx layout.Context, se *common.ReadOnlyEditor, target *common.Liner) {
+	common.SetContextData(a.Pane.linkContextKey, ptr.To(""), target)
 }
 
-func (a *AddNoteAction) DoAddLink(gtx layout.Context, se *common.ReadOnlyEditor) {
-	lines := se.GetSelectedLines()
-	if len(lines) == 0 {
-		return
-	}
-	// for simplicity, we just take the first selected line
-	// pop up a the file chooser dialog to select a file
-	go common.AsyncChooseFile(a, lines[0])
+func (a *AddNoteAction) DoAddLink(gtx layout.Context, se *common.ReadOnlyEditor, target *common.Liner) {
+	go common.AsyncChooseFile(a, target)
 }
 
-func (a *AddNoteAction) DoAddNote(gtx layout.Context, se *common.ReadOnlyEditor) {
-	lines := se.GetSelectedLines()
-	if len(lines) == 0 {
-		return
-	}
-	common.SetContextData(a.Pane.noteContextKey, lines[0], nil)
+func (a *AddNoteAction) DoAddNote(gtx layout.Context, se *common.ReadOnlyEditor, target *common.Liner) {
+	common.SetContextData(a.Pane.noteContextKey, target, nil)
 }
 
-func (a *AddNoteAction) DoRemoveNote(gtx layout.Context, se *common.ReadOnlyEditor) {
-	lines := se.GetSelectedLines()
-	if len(lines) == 0 {
-		return
-	}
-	common.SetContextData(a.Pane.noteContextKey, lines[0], ptr.To(true))
-}
-
-// GetClickable implements common.MenuAction.
-func (a *AddNoteAction) GetClickable() *widget.Clickable {
-	return &a.clickable
-}
-
-// GetMenuOption implements common.MenuAction.
-func (a *AddNoteAction) GetMenuOption() func(gtx layout.Context) layout.Dimensions {
-	return a.menuFunc
+func (a *AddNoteAction) DoRemoveNote(gtx layout.Context, se *common.ReadOnlyEditor, target *common.Liner) {
+	common.SetContextData(a.Pane.noteContextKey, target, ptr.To(true))
 }
 
 // GetName implements common.MenuAction.
@@ -434,10 +405,15 @@ func (a *AddNoteAction) GetName() string {
 	return a.name
 }
 
-func NewAddNoteAction(name string, icon *widget.Icon, pane *FilePane) common.MenuAction {
-	a := &AddNoteAction{name: name, Pane: pane}
-	a.menuFunc = func(gtx layout.Context) layout.Dimensions {
-		return common.ItemFunc(gtx, &a.clickable, a.name, icon)
+func (a *AddNoteAction) GetIcon() *widget.Icon {
+	return a.icon
+}
+
+func NewAddNoteAction(name string, icon *widget.Icon, pane *FilePane) common.LineAction {
+	a := &AddNoteAction{
+		name: name,
+		icon: icon,
+		Pane: pane,
 	}
 	return a
 }

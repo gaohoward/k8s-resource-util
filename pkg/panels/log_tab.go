@@ -102,7 +102,7 @@ func NewLogTab() *LogTab {
 	th := common.GetTheme()
 
 	tab := &LogTab{}
-	tab.logEditor = common.NewReadOnlyEditor("log", 14, nil, true)
+	tab.logEditor = common.NewReadOnlyEditor("log", 14, nil, nil, true)
 
 	tab.logBuffer = &LogBuffer{}
 
