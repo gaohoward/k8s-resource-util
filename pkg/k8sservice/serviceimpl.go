@@ -254,7 +254,7 @@ func NewResourceInstanceAction(req *DeployResourceRequest) *common.ResourceInsta
 		Order:    int32PtrToIntPtr(&req.Order),
 		InstName: req.InstName,
 		Label:    req.Label,
-		Dirty: false,
+		Dirty:    false,
 	}
 	return &action
 }
@@ -274,7 +274,18 @@ func Run() {
 		panic(err)
 	}
 
-	s := grpc.NewServer()
+	logErr := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		resp, err := handler(ctx, req)
+		if err != nil {
+			logger.Error("error handling request", zap.Error(err))
+		}
+		return resp, err
+	}
+	opts := []grpc.ServerOption{
+		grpc.UnaryInterceptor(logErr),
+	}
+
+	s := grpc.NewServer(opts...)
 
 	RegisterGrpcK8SServiceServer(s, &server{
 		client: internalClient,
