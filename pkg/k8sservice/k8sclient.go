@@ -809,6 +809,7 @@ type DeployedResources struct {
 	resIds    map[string]*DeployDetail
 	list      []*DeployDetail
 	persister DeploymentPersister
+	mutex     sync.Mutex
 }
 
 func (d *DeployedResources) GetPersister() DeploymentPersister {
@@ -869,6 +870,14 @@ func (d *DeployedResources) AddDetail(dd *DeployDetail, persist bool) {
 
 // called when deploy failed or undeploy
 func (d *DeployedResources) Remove(resId string) {
+	// there is no need for locking as the ui operations are all sequential
+	// however it looks like if I quickly click undeploy more then once
+	// (like my mouse is not that good so it can issue a double click in quick succession
+	// while I intend to click just once) the method can be called twice at almost same
+	// time (re-entrance of method). So the delete slice operation may get messed up
+	// and cause index out of bound exception. So add a lock here just to be safe.
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
 	delete(d.resIds, resId)
 	for i, detail := range d.list {
 		if detail.Id == resId {
