@@ -4,6 +4,7 @@ import (
 	"image"
 	"slices"
 	"strings"
+	"sync"
 
 	"gaohoward.tools/k8s/resutil/pkg/common"
 	"gaohoward.tools/k8s/resutil/pkg/config"
@@ -33,6 +34,7 @@ const (
 )
 
 type InKubeTab struct {
+	lock         sync.RWMutex
 	title        string
 	tabClickable widget.Clickable
 
@@ -293,6 +295,14 @@ func (t *InKubeTab) RefreshNamespaces() {
 }
 
 func (t *InKubeTab) RefreshApiResources(force bool) {
+	// this method is not supposed to be called concurrently
+	// but sometime a very quick double client click on refresh button
+	// may cause re-entry before the first call finishes
+	// may result in map being concurrent change error
+	// so add a lock here
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
 	t.resourceItems = make([]*ResourceItem, 0)
 	t.resourceItemMap = make(map[string]*ResourceItem, 0)
 
